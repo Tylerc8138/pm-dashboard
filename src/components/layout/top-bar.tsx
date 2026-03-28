@@ -6,11 +6,11 @@ import { useFilters } from '@/contexts/filter-context'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Users, LogOut, ChevronDown } from 'lucide-react'
+import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle } from 'lucide-react'
 
 interface TopBarProps {
-  view: 'kanban' | 'teams'
-  onViewChange: (view: 'kanban' | 'teams') => void
+  view: 'kanban' | 'teams' | 'myview'
+  onViewChange: (view: 'kanban' | 'teams' | 'myview') => void
 }
 
 export function TopBar({ view, onViewChange }: TopBarProps) {
@@ -31,6 +31,15 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
         </div>
 
         <div className="ml-4 flex items-center gap-1 rounded-lg bg-muted p-1">
+          <Button
+            variant={view === 'myview' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('myview')}
+            className="gap-1.5"
+          >
+            <UserCircle className="h-4 w-4" />
+            My View
+          </Button>
           <Button
             variant={view === 'kanban' ? 'default' : 'ghost'}
             size="sm"
