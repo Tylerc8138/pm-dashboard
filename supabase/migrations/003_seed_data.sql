@@ -9,17 +9,17 @@ INSERT INTO teams (id, name) VALUES
 
 -- Seed Members
 INSERT INTO members (id, full_name, email, team_id, role) VALUES
-  ('b1000000-0000-0000-0000-000000000001', 'Robbie Richards', 'robbie.richards@visa.com', 'a1000000-0000-0000-0000-000000000001', 'lead'),
-  ('b1000000-0000-0000-0000-000000000002', 'Tyler Cheung', 'tyler.cheung@visa.com', 'a1000000-0000-0000-0000-000000000002', 'lead'),
-  ('b1000000-0000-0000-0000-000000000003', 'Dominic Silk', 'dominic.silk@visa.com', 'a1000000-0000-0000-0000-000000000002', 'member'),
-  ('b1000000-0000-0000-0000-000000000004', 'Tanvi Bajaj', 'tanvi.bajaj@visa.com', 'a1000000-0000-0000-0000-000000000002', 'member'),
-  ('b1000000-0000-0000-0000-000000000005', 'Marketing Lead', 'marketing.lead@visa.com', 'a1000000-0000-0000-0000-000000000003', 'lead'),
-  ('b1000000-0000-0000-0000-000000000006', 'Katie Zeiser', 'katie.zeiser@visa.com', 'a1000000-0000-0000-0000-000000000004', 'lead'),
-  ('b1000000-0000-0000-0000-000000000007', 'Cecelia Tamsen', 'cecelia.tamsen@visa.com', 'a1000000-0000-0000-0000-000000000004', 'member'),
-  ('b1000000-0000-0000-0000-000000000008', 'Tuesday Uhland', 'tuesday.uhland@visa.com', 'a1000000-0000-0000-0000-000000000004', 'member'),
+  ('b1000000-0000-0000-0000-000000000001', 'Robbie Richards', 'rorichar@visa.com', 'a1000000-0000-0000-0000-000000000001', 'lead'),
+  ('b1000000-0000-0000-0000-000000000002', 'Tyler Cheung', 'tylcheun@visa.com', 'a1000000-0000-0000-0000-000000000002', 'lead'),
+  ('b1000000-0000-0000-0000-000000000003', 'Dominic Silk', 'dosilk@visa.com', 'a1000000-0000-0000-0000-000000000002', 'member'),
+  ('b1000000-0000-0000-0000-000000000004', 'Tanvi Bajaj', 'tbajaj@visa.com', 'a1000000-0000-0000-0000-000000000002', 'member'),
+  ('b1000000-0000-0000-0000-000000000005', 'Natalia Espejo', 'nespejo@visa.com', 'a1000000-0000-0000-0000-000000000003', 'lead'),
+  ('b1000000-0000-0000-0000-000000000006', 'Katie Zeiser', 'kazeiser@visa.com', 'a1000000-0000-0000-0000-000000000004', 'lead'),
+  ('b1000000-0000-0000-0000-000000000007', 'Cecelia Tamsen', 'ctamsen@visa.com', 'a1000000-0000-0000-0000-000000000004', 'member'),
+  ('b1000000-0000-0000-0000-000000000008', 'Tuesday Uhland', 'tuhland@visa.com', 'a1000000-0000-0000-0000-000000000004', 'member'),
   ('b1000000-0000-0000-0000-000000000009', 'May Liao', 'may.liao@visa.com', 'a1000000-0000-0000-0000-000000000005', 'lead'),
-  ('b1000000-0000-0000-0000-000000000010', 'Jay Matta', 'jay.matta@visa.com', 'a1000000-0000-0000-0000-000000000006', 'lead'),
-  ('b1000000-0000-0000-0000-000000000011', 'Alex Steinhart', 'alex.steinhart@visa.com', 'a1000000-0000-0000-0000-000000000006', 'member');
+  ('b1000000-0000-0000-0000-000000000010', 'Jay Matta', 'jamatta@visa.com', 'a1000000-0000-0000-0000-000000000006', 'lead'),
+  ('b1000000-0000-0000-0000-000000000011', 'Alex Steinhart', 'asteinha@visa.com', 'a1000000-0000-0000-0000-000000000006', 'member');
 
 -- Seed Sprints
 INSERT INTO sprints (id, number, name, goal, start_date, end_date) VALUES

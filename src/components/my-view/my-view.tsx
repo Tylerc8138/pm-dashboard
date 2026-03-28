@@ -9,7 +9,7 @@ import { ProductPortal } from './product-portal'
 import type { Task } from '@/types/database'
 
 // Tyler Cheung has PM-level access (master view) even though he's on the Product team
-const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com']
+const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
 
 interface MyViewProps {
   onEditTask: (task: Task) => void
