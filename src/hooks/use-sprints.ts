@@ -11,7 +11,7 @@ export function useSprints() {
         .select('*')
         .order('number')
       if (error) throw error
-      return data
+      return data as Sprint[]
     },
   })
 }

@@ -15,7 +15,7 @@ export function useMoveTask() {
     mutationFn: async ({ taskId, status, position }: MoveTaskInput) => {
       const { data, error } = await supabase
         .from('tasks')
-        .update({ status, position })
+        .update({ status, position } as unknown as Record<string, unknown>)
         .eq('id', taskId)
         .select()
         .single()

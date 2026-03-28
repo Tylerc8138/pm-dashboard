@@ -25,7 +25,7 @@ export function useTasks(filters: TaskFilters = {}) {
 
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data as Task[]
     },
   })
 }
@@ -37,11 +37,11 @@ export function useCreateTask() {
     mutationFn: async (task: TaskInsert) => {
       const { data, error } = await supabase
         .from('tasks')
-        .insert(task)
+        .insert(task as unknown as Record<string, unknown>)
         .select()
         .single()
       if (error) throw error
-      return data
+      return data as Task
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
@@ -57,12 +57,12 @@ export function useUpdateTask() {
       const { id, ...updates } = task
       const { data, error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update(updates as unknown as Record<string, unknown>)
         .eq('id', id)
         .select()
         .single()
       if (error) throw error
-      return data
+      return data as Task
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] })

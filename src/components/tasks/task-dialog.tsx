@@ -121,7 +121,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+              <Select value={status} onValueChange={(v: string | null) => v && setStatus(v as TaskStatus)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog</SelectItem>
@@ -141,7 +141,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Sprint</Label>
-              <Select value={sprintId} onValueChange={setSprintId}>
+              <Select value={sprintId} onValueChange={(v: string | null) => setSprintId(v ?? '')}>
                 <SelectTrigger><SelectValue placeholder="Select sprint" /></SelectTrigger>
                 <SelectContent>
                   {sprints?.map((s) => (
@@ -153,7 +153,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
             <div className="space-y-2">
               <Label>Team</Label>
-              <Select value={teamId} onValueChange={(v) => { setTeamId(v); setOwnerId('unassigned') }}>
+              <Select value={teamId} onValueChange={(v: string | null) => { setTeamId(v ?? ''); setOwnerId('unassigned') }}>
                 <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                 <SelectContent>
                   {teams?.map((t) => (
@@ -166,7 +166,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
           <div className="space-y-2">
             <Label>Owner</Label>
-            <Select value={ownerId} onValueChange={setOwnerId}>
+            <Select value={ownerId} onValueChange={(v: string | null) => setOwnerId(v ?? 'unassigned')}>
               <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>

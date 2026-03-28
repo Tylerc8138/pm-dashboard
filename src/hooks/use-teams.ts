@@ -11,7 +11,7 @@ export function useTeams() {
         .select('*')
         .order('name')
       if (error) throw error
-      return data
+      return data as Team[]
     },
   })
 }

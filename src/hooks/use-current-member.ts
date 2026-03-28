@@ -17,7 +17,7 @@ export function useCurrentMember() {
         .eq('auth_user_id', user.id)
         .maybeSingle()
       if (error) throw error
-      return data
+      return data as Member | null
     },
   })
 }
