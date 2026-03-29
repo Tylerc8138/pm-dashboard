@@ -4,7 +4,7 @@ import { useSprints } from '@/hooks/use-sprints'
 import { useTeams } from '@/hooks/use-teams'
 import { useFilters } from '@/contexts/filter-context'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle } from 'lucide-react'
 
@@ -19,6 +19,16 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
   const { data: sprints } = useSprints()
   const { data: teams } = useTeams()
   const { sprintId, setSprintId, teamId, setTeamId } = useFilters()
+
+  const sprintLabel = sprintId
+    ? sprints?.find((s) => s.id === sprintId)
+      ? `Sprint ${sprints.find((s) => s.id === sprintId)!.number}: ${sprints.find((s) => s.id === sprintId)!.name}`
+      : 'Loading...'
+    : 'All Sprints'
+
+  const teamLabel = teamId
+    ? teams?.find((t) => t.id === teamId)?.name ?? 'Loading...'
+    : 'All Teams'
 
   return (
     <header className="flex items-center justify-between border-b bg-white px-6 py-3">
@@ -63,8 +73,8 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
 
       <div className="flex items-center gap-3">
         <Select value={sprintId ?? 'all'} onValueChange={(v: string | null) => setSprintId(!v || v === 'all' ? null : v)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="All Sprints" />
+          <SelectTrigger className="w-[180px]">
+            <span className="truncate">{sprintLabel}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sprints</SelectItem>
@@ -78,7 +88,7 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
 
         <Select value={teamId ?? 'all'} onValueChange={(v: string | null) => setTeamId(!v || v === 'all' ? null : v)}>
           <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="All Teams" />
+            <span className="truncate">{teamLabel}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Teams</SelectItem>

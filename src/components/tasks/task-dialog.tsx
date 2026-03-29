@@ -4,13 +4,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
 import { useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/use-tasks'
 import type { Task, TaskStatus } from '@/types/database'
 import { Trash2 } from 'lucide-react'
+
+const STATUS_LABELS: Record<TaskStatus, string> = {
+  backlog: 'Backlog',
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  done: 'Done',
+}
 
 interface TaskDialogProps {
   open: boolean
@@ -67,6 +74,15 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
   const teamMembers = members?.filter((m) => m.team_id === teamId) ?? []
 
+  // Compute display labels
+  const sprintLabel = sprints?.find((s) => s.id === sprintId)
+    ? `Sprint ${sprints.find((s) => s.id === sprintId)!.number}: ${sprints.find((s) => s.id === sprintId)!.name}`
+    : 'Select sprint'
+  const teamLabel = teams?.find((t) => t.id === teamId)?.name ?? 'Select team'
+  const ownerLabel = ownerId === 'unassigned'
+    ? 'Unassigned'
+    : members?.find((m) => m.id === ownerId)?.full_name ?? 'Select owner'
+
   const handleSave = async () => {
     if (!title.trim() || !sprintId || !teamId) return
 
@@ -122,7 +138,9 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={(v: string | null) => v && setStatus(v as TaskStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <span>{STATUS_LABELS[status]}</span>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog</SelectItem>
                   <SelectItem value="todo">To Do</SelectItem>
@@ -142,7 +160,9 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <div className="space-y-2">
               <Label>Sprint</Label>
               <Select value={sprintId} onValueChange={(v: string | null) => setSprintId(v ?? '')}>
-                <SelectTrigger><SelectValue placeholder="Select sprint" /></SelectTrigger>
+                <SelectTrigger>
+                  <span className="truncate">{sprintLabel}</span>
+                </SelectTrigger>
                 <SelectContent>
                   {sprints?.map((s) => (
                     <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>
@@ -154,7 +174,9 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <div className="space-y-2">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={(v: string | null) => { setTeamId(v ?? ''); setOwnerId('unassigned') }}>
-                <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                <SelectTrigger>
+                  <span className="truncate">{teamLabel}</span>
+                </SelectTrigger>
                 <SelectContent>
                   {teams?.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -167,7 +189,9 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
           <div className="space-y-2">
             <Label>Owner</Label>
             <Select value={ownerId} onValueChange={(v: string | null) => setOwnerId(v ?? 'unassigned')}>
-              <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+              <SelectTrigger>
+                <span className="truncate">{ownerLabel}</span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {teamMembers.map((m) => (
