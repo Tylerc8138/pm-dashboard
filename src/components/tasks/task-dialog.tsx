@@ -102,7 +102,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       if (isEdit) {
         await updateTask.mutateAsync({ id: task.id, ...payload })
       } else {
-        await createTask.mutateAsync({ ...payload, position: Date.now() })
+        await createTask.mutateAsync({ ...payload, position: Math.floor(Date.now() / 1000) % 1000000 + 100000 })
       }
       onClose()
     } catch (err: unknown) {
