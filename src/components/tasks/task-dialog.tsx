@@ -162,25 +162,25 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Sprint</Label>
-              <Select value={sprintId} onValueChange={(v: string | null) => setSprintId(v ?? '')}>
-                <SelectTrigger>
-                  <span className="truncate">{sprintLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {sprints?.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Sprint</Label>
+            <Select value={sprintId} onValueChange={(v: string | null) => setSprintId(v ?? '')}>
+              <SelectTrigger className="w-full">
+                <span className="truncate">{sprintLabel}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {sprints?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={(v: string | null) => { setTeamId(v ?? ''); setOwnerId('unassigned') }}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <span className="truncate">{teamLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
@@ -190,21 +190,21 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>Owner</Label>
-            <Select value={ownerId} onValueChange={(v: string | null) => setOwnerId(v ?? 'unassigned')}>
-              <SelectTrigger>
-                <span className="truncate">{ownerLabel}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {teamMembers.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label>Owner</Label>
+              <Select value={ownerId} onValueChange={(v: string | null) => setOwnerId(v ?? 'unassigned')}>
+                <SelectTrigger className="w-full">
+                  <span className="truncate">{ownerLabel}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
