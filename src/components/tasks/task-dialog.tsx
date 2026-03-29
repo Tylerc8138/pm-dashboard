@@ -106,7 +106,8 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       }
       onClose()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
+      const e = err as Record<string, unknown>
+      const message = e?.message ?? e?.details ?? e?.hint ?? JSON.stringify(err)
       alert(`Error saving task: ${message}`)
     }
   }
