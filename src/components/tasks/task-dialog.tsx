@@ -98,12 +98,17 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       blocked_reason: isBlocked ? blockedReason : null,
     }
 
-    if (isEdit) {
-      await updateTask.mutateAsync({ id: task.id, ...payload })
-    } else {
-      await createTask.mutateAsync({ ...payload, position: Date.now() })
+    try {
+      if (isEdit) {
+        await updateTask.mutateAsync({ id: task.id, ...payload })
+      } else {
+        await createTask.mutateAsync({ ...payload, position: Date.now() })
+      }
+      onClose()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      alert(`Error saving task: ${message}`)
     }
-    onClose()
   }
 
   const handleDelete = async () => {
