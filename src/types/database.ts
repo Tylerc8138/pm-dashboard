@@ -70,6 +70,22 @@ export interface TaskUpdate {
   blocked_reason?: string | null
 }
 
+export interface TaskReference {
+  id: string
+  task_id: string
+  label: string
+  url: string
+  created_by: string | null
+  created_at: string
+}
+
+export interface TaskReferenceInsert {
+  task_id: string
+  label: string
+  url: string
+  created_by?: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -77,6 +93,7 @@ export interface Database {
       members: { Row: Member; Insert: Omit<Member, 'id' | 'created_at'>; Update: Partial<Omit<Member, 'id'>> }
       sprints: { Row: Sprint; Insert: Omit<Sprint, 'id' | 'created_at'>; Update: Partial<Omit<Sprint, 'id'>> }
       tasks: { Row: Task; Insert: TaskInsert; Update: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at'>> }
+      task_references: { Row: TaskReference; Insert: TaskReferenceInsert; Update: Partial<Omit<TaskReference, 'id' | 'created_at'>> }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

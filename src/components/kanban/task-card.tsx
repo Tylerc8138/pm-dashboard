@@ -3,7 +3,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { Badge } from '@/components/ui/badge'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
-import { AlertCircle, GripVertical } from 'lucide-react'
+import { useReferences } from '@/hooks/use-references'
+import { AlertCircle, GripVertical, Link } from 'lucide-react'
 import type { Task } from '@/types/database'
 
 interface TaskCardProps {
@@ -24,6 +25,7 @@ const TEAM_COLORS: Record<string, string> = {
 export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
   const { data: teams } = useTeams()
   const { data: members } = useMembers()
+  const { data: references = [] } = useReferences(task.id)
 
   const {
     attributes,
@@ -74,6 +76,12 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
         {task.story_points != null && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
             {task.story_points} SP
+          </Badge>
+        )}
+        {references.length > 0 && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+            <Link className="h-2.5 w-2.5" />
+            {references.length}
           </Badge>
         )}
         {task.is_blocked && (

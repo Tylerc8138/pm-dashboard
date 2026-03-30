@@ -5,12 +5,15 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
+import { useCurrentMember } from '@/hooks/use-current-member'
 import { useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/use-tasks'
+import { useReferences, useCreateReference, useDeleteReference } from '@/hooks/use-references'
 import type { Task, TaskStatus } from '@/types/database'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Plus, ExternalLink, Link, X } from 'lucide-react'
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   backlog: 'Backlog',
@@ -32,9 +35,14 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const { data: teams } = useTeams()
   const { data: members } = useMembers()
   const { data: sprints } = useSprints()
+  const { data: currentMember } = useCurrentMember()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+
+  const { data: references = [] } = useReferences(task?.id ?? null)
+  const createReference = useCreateReference()
+  const deleteReference = useDeleteReference()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -46,6 +54,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const [isBlocked, setIsBlocked] = useState(false)
   const [blockedReason, setBlockedReason] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Reference form state
+  const [showRefForm, setShowRefForm] = useState(false)
+  const [refLabel, setRefLabel] = useState('')
+  const [refUrl, setRefUrl] = useState('')
 
   useEffect(() => {
     if (task) {
@@ -70,11 +83,13 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       setBlockedReason('')
     }
     setConfirmDelete(false)
+    setShowRefForm(false)
+    setRefLabel('')
+    setRefUrl('')
   }, [task, open, defaultStatus, sprints, teams])
 
   const teamMembers = members?.filter((m) => m.team_id === teamId) ?? []
 
-  // Compute display labels
   const sprintLabel = sprints?.find((s) => s.id === sprintId)
     ? `Sprint ${sprints.find((s) => s.id === sprintId)!.number}: ${sprints.find((s) => s.id === sprintId)!.name}`
     : 'Select sprint'
@@ -122,9 +137,38 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
     onClose()
   }
 
+  const handleAddReference = async () => {
+    if (!task || !refLabel.trim() || !refUrl.trim()) return
+
+    let url = refUrl.trim()
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url
+    }
+
+    try {
+      await createReference.mutateAsync({
+        task_id: task.id,
+        label: refLabel.trim(),
+        url,
+        created_by: currentMember?.id ?? null,
+      })
+      setRefLabel('')
+      setRefUrl('')
+      setShowRefForm(false)
+    } catch (err: unknown) {
+      const e = err as Record<string, unknown>
+      alert(`Error adding reference: ${e?.message ?? JSON.stringify(err)}`)
+    }
+  }
+
+  const handleDeleteReference = async (refId: string) => {
+    if (!task) return
+    await deleteReference.mutateAsync({ id: refId, taskId: task.id })
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
         </DialogHeader>
@@ -221,6 +265,86 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
               />
             )}
           </div>
+
+          {/* References Section - only shown when editing */}
+          {isEdit && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5">
+                    <Link className="h-4 w-4" />
+                    References
+                  </Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowRefForm(!showRefForm)}
+                    className="gap-1 text-xs"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Link
+                  </Button>
+                </div>
+
+                {/* Existing references */}
+                {references.length > 0 && (
+                  <div className="space-y-1.5">
+                    {references.map((ref) => (
+                      <div key={ref.id} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a
+                          href={ref.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-sm text-primary hover:underline truncate"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {ref.label}
+                        </a>
+                        <button
+                          onClick={() => handleDeleteReference(ref.id)}
+                          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {references.length === 0 && !showRefForm && (
+                  <p className="text-xs text-muted-foreground italic">No references attached. Add links to documents, designs, or other materials.</p>
+                )}
+
+                {/* Add reference form */}
+                {showRefForm && (
+                  <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                    <Input
+                      value={refLabel}
+                      onChange={(e) => setRefLabel(e.target.value)}
+                      placeholder="Label (e.g. Landing page draft v2)"
+                      className="text-sm"
+                    />
+                    <Input
+                      value={refUrl}
+                      onChange={(e) => setRefUrl(e.target.value)}
+                      placeholder="URL (e.g. docs.google.com/...)"
+                      className="text-sm"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => { setShowRefForm(false); setRefLabel(''); setRefUrl('') }}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleAddReference} disabled={!refLabel.trim() || !refUrl.trim()}>
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter className="flex justify-between">
