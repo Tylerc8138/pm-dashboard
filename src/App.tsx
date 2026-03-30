@@ -39,7 +39,7 @@ function Dashboard() {
     <FilterProvider>
       <div className="flex h-screen flex-col overflow-hidden">
         <TopBar view={view} onViewChange={setView} />
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-auto">
           {view === 'myview' ? (
             <MyView onEditTask={handleEditTask} />
           ) : view === 'kanban' ? (
