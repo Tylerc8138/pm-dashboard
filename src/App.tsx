@@ -6,13 +6,14 @@ import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TeamView } from '@/components/team-view/team-view'
 import { TaskDialog } from '@/components/tasks/task-dialog'
 import { MyView } from '@/components/my-view/my-view'
+import { LinksView } from '@/components/links/links-view'
 import { LoginPage } from '@/pages/login'
 import { GatePage } from '@/pages/gate'
 import { useRealtime } from '@/hooks/use-realtime'
 import type { Task, TaskStatus } from '@/types/database'
 
 function Dashboard() {
-  const [view, setView] = useState<'kanban' | 'teams' | 'myview'>('myview')
+  const [view, setView] = useState<'kanban' | 'teams' | 'myview' | 'links'>('myview')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo')
@@ -44,6 +45,8 @@ function Dashboard() {
             <MyView onEditTask={handleEditTask} />
           ) : view === 'kanban' ? (
             <KanbanBoard onEditTask={handleEditTask} onNewTask={handleNewTask} />
+          ) : view === 'links' ? (
+            <LinksView onEditTask={handleEditTask} />
           ) : (
             <TeamView onEditTask={handleEditTask} />
           )}

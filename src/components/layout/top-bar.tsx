@@ -6,11 +6,11 @@ import { useFilters } from '@/contexts/filter-context'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle } from 'lucide-react'
+import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle, LinkIcon } from 'lucide-react'
 
 interface TopBarProps {
-  view: 'kanban' | 'teams' | 'myview'
-  onViewChange: (view: 'kanban' | 'teams' | 'myview') => void
+  view: 'kanban' | 'teams' | 'myview' | 'links'
+  onViewChange: (view: 'kanban' | 'teams' | 'myview' | 'links') => void
 }
 
 export function TopBar({ view, onViewChange }: TopBarProps) {
@@ -67,6 +67,15 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
           >
             <Users className="h-4 w-4" />
             Teams
+          </Button>
+          <Button
+            variant={view === 'links' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('links')}
+            className="gap-1.5"
+          >
+            <LinkIcon className="h-4 w-4" />
+            Links
           </Button>
         </div>
       </div>
