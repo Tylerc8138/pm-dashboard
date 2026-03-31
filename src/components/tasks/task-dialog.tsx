@@ -195,21 +195,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              onFocus={(e) => {
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              onBlur={(e) => {
-                e.target.style.height = ''
-              }}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional details"
               rows={2}
-              className="resize-none overflow-hidden"
+              style={{ fieldSizing: 'fixed' } as React.CSSProperties}
+              className="resize-vertical min-h-[60px] max-h-[200px] overflow-y-auto word-break-break-word whitespace-pre-wrap break-words"
             />
           </div>
 
