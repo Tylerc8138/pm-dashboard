@@ -37,8 +37,8 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
     : 'All Teams'
 
   return (
-    <header className="flex items-center justify-between border-b bg-white px-3 py-2 gap-2" style={{ fontSize: 'clamp(10px, 1.1vw, 14px)' }}>
-      <div className="flex items-center gap-2 min-w-0">
+    <header className="flex items-center justify-between border-b bg-white px-3 py-2 gap-4" style={{ fontSize: 'clamp(10px, 1.1vw, 14px)' }}>
+      <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground font-bold" style={{ fontSize: '1em' }}>
             V
