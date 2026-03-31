@@ -88,7 +88,7 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
 
       <div className="flex items-center gap-3">
         <Select value={sprintId ?? 'all'} onValueChange={(v: string | null) => setSprintId(!v || v === 'all' ? null : v)}>
-          <SelectTrigger className="w-[280px]">
+          <SelectTrigger className="w-[180px]">
             <span className="truncate">{sprintLabel}</span>
           </SelectTrigger>
           <SelectContent>
