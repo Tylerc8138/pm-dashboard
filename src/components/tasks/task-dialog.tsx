@@ -192,7 +192,25 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional details" rows={2} />
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              onFocus={(e) => {
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              onBlur={(e) => {
+                e.target.style.height = ''
+              }}
+              placeholder="Optional details"
+              rows={2}
+              className="resize-none overflow-hidden"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
