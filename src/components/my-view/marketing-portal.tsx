@@ -32,7 +32,7 @@ export function MarketingPortal({ teamId, onEditTask }: MarketingPortalProps) {
 
   return (
     <PortalLayout title="Marketing Portal" subtitle="Content campaigns, developer guides, and social amplification">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard label="Creating" count={stats.creating} icon={PenTool} color="blue" />
         <PortalSummaryCard label="Awaiting Approval" count={stats.inApproval} icon={Clock} color="amber" />
         <PortalSummaryCard label="Live" count={stats.live} icon={Rocket} color="green" />

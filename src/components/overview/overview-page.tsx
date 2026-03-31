@@ -135,7 +135,7 @@ export function OverviewPage() {
         </Card>
 
         {/* Overall Progress */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold">{overallStats.done}/{overallStats.total}</p>
@@ -207,7 +207,7 @@ export function OverviewPage() {
                           <>
                             <p className="text-sm text-muted-foreground mt-2">{details.description}</p>
 
-                            <div className="grid grid-cols-2 gap-4 mt-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Key Activities</p>
                                 <ul className="space-y-1">
@@ -255,7 +255,7 @@ export function OverviewPage() {
             Key Metrics of Success
           </h2>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {KEY_METRICS.map((group) => (
               <Card key={group.category}>
                 <CardHeader className="pb-2">
@@ -285,7 +285,7 @@ export function OverviewPage() {
             Teams
           </h2>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {teams.map((team) => {
               const teamMembers = members.filter(m => m.team_id === team.id)
               const teamTasks = tasks.filter(t => t.team_id === team.id)

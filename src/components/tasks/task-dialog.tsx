@@ -244,7 +244,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={(v: string | null) => v && setStatus(v as TaskStatus)}>
@@ -282,7 +282,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={(v: string | null) => { setTeamId(v ?? ''); setOwnerId('unassigned') }}>
@@ -363,7 +363,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
                 {/* Existing image references */}
                 {imageRefs.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {imageRefs.map((ref) => (
                       <div key={ref.id} className="relative group rounded-md border overflow-hidden">
                         <a href={ref.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>

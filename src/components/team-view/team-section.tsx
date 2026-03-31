@@ -29,15 +29,15 @@ export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionPro
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <CardTitle className="text-base">{team.name}</CardTitle>
             <Badge variant="secondary" className="text-xs">
               {members.length} {members.length === 1 ? 'member' : 'members'}
             </Badge>
             <HealthIndicator health={teamHealth} />
           </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm text-muted-foreground">
             <span>{doneTasks}/{totalTasks} tasks done</span>
             {highPriority > 0 && (
               <Badge variant="secondary" className="text-xs bg-red-100 text-red-700">

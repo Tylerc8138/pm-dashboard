@@ -32,7 +32,7 @@ export function CommsPortal({ teamId, onEditTask }: CommsPortalProps) {
 
   return (
     <PortalLayout title="Comms Portal" subtitle="Press releases, media pitches, and thought leadership">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard label="Drafting" count={stats.drafting} icon={FileText} color="blue" />
         <PortalSummaryCard label="In Review" count={stats.inReview} icon={Eye} color="amber" />
         <PortalSummaryCard label="Published" count={stats.published} icon={Send} color="green" />

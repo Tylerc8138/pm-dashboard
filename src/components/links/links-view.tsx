@@ -153,7 +153,7 @@ export function LinksView({ onEditTask }: LinksViewProps) {
                         <span className="text-xs font-medium text-muted-foreground">Screenshots</span>
                       </div>
                     )}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {teamImages.map((ref) => (
                         <div key={ref.id} className="rounded-md border overflow-hidden hover:shadow-md transition-shadow">
                           <a href={ref.url} target="_blank" rel="noopener noreferrer">

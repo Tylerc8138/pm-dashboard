@@ -52,7 +52,7 @@ export function LegalPortal({ teamId, onEditTask }: LegalPortalProps) {
 
   return (
     <PortalLayout title="Legal Portal" subtitle="Content review queue and compliance approvals">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard label="Submitted for Review" count={stats.submitted} icon={Inbox} color="blue" />
         <PortalSummaryCard label="Under Review" count={stats.underReview} icon={Scale} color="amber" />
         <PortalSummaryCard label="Approved" count={stats.approved} icon={CheckCircle2} color="green" />
@@ -73,7 +73,7 @@ export function LegalPortal({ teamId, onEditTask }: LegalPortalProps) {
             <p className="py-4 text-center text-sm text-muted-foreground">Queue is empty — all caught up.</p>
           ) : (
             <div className="space-y-1">
-              <div className="grid grid-cols-[1fr_100px_80px_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[1fr_80px_70px_50px] md:grid-cols-[1fr_100px_80px_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <span>Content</span>
                 <span>From Team</span>
                 <span>Status</span>

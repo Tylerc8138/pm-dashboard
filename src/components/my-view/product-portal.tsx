@@ -32,7 +32,7 @@ export function ProductPortal({ teamId, onEditTask }: ProductPortalProps) {
 
   return (
     <PortalLayout title="Product Portal" subtitle="Visa CLI development, documentation, and developer experience">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard label="Backlog" count={stats.backlog} icon={Layers} color="default" />
         <PortalSummaryCard label="Up Next" count={stats.upNext} icon={ArrowRight} color="blue" />
         <PortalSummaryCard label="In Progress" count={stats.inProgress} icon={Code} color="amber" />

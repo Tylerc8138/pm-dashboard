@@ -32,7 +32,7 @@ export function SearchPortal({ teamId, onEditTask }: SearchPortalProps) {
 
   return (
     <PortalLayout title="Search Strategy Portal" subtitle="GEO/AEO keyword research, structured data, and LLM citation tracking">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard label="Queued" count={stats.queued} icon={Search} color="default" />
         <PortalSummaryCard label="Researching" count={stats.researching} icon={FlaskConical} color="blue" />
         <PortalSummaryCard label="Implementing" count={stats.implementing} icon={Wrench} color="amber" />

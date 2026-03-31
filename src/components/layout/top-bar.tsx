@@ -37,16 +37,16 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
     : 'All Teams'
 
   return (
-    <header className="flex items-center justify-between border-b bg-white px-6 py-3">
-      <div className="flex items-center gap-4">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3 md:px-6">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground text-sm font-bold">
             V
           </div>
-          <h1 className="text-lg font-semibold">Visa AEO Strategy Dashboard</h1>
+          <h1 className="text-base font-semibold md:text-lg">Visa AEO Strategy Dashboard</h1>
         </div>
 
-        <div className="ml-4 flex items-center gap-1 rounded-lg bg-muted p-1">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1">
           <Button
             variant={view === 'overview' ? 'default' : 'ghost'}
             size="sm"
@@ -95,7 +95,7 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3">
         <Select value={sprintId ?? 'all'} onValueChange={(v: string | null) => setSprintId(!v || v === 'all' ? null : v)}>
           <SelectTrigger className="w-[180px]">
             <span className="truncate">{sprintLabel}</span>

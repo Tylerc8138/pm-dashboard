@@ -76,7 +76,7 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
       subtitle={currentSprint ? `Sprint ${currentSprint.number}: ${currentSprint.name}` : 'All Sprints'}
     >
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <PortalSummaryCard
           label="Tasks Completed"
           count={stats.done.length}
@@ -152,7 +152,7 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
           {blockers.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">No blockers — all clear.</p>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 overflow-x-auto">
               <div className="grid grid-cols-[1fr_100px_100px_1fr_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <span>Task</span>
                 <span>Team</span>

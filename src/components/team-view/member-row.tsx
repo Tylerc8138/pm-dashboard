@@ -33,8 +33,8 @@ export function MemberRow({ member, tasks, onEditTask }: MemberRowProps) {
   const health = getMemberHealth(tasks)
 
   return (
-    <div className="flex items-start gap-3 rounded-lg px-3 py-2 hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-2 w-[200px] shrink-0 pt-0.5">
+    <div className="flex flex-col md:flex-row items-start gap-2 md:gap-3 rounded-lg px-3 py-2 hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-2 w-full md:w-[200px] shrink-0 pt-0.5">
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
           {member ? member.full_name.split(' ').map((n) => n[0]).join('') : '?'}
         </div>
