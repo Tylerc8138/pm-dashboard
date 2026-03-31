@@ -6,13 +6,13 @@ import { useFilters } from '@/contexts/filter-context'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle, LinkIcon, Settings } from 'lucide-react'
+import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle, LinkIcon, Settings, Home } from 'lucide-react'
 
 const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
 
 interface TopBarProps {
-  view: 'kanban' | 'teams' | 'myview' | 'links'
-  onViewChange: (view: 'kanban' | 'teams' | 'myview' | 'links') => void
+  view: 'kanban' | 'teams' | 'myview' | 'links' | 'overview'
+  onViewChange: (view: 'kanban' | 'teams' | 'myview' | 'links' | 'overview') => void
   onManageSprints?: () => void
 }
 
@@ -47,6 +47,15 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
         </div>
 
         <div className="ml-4 flex items-center gap-1 rounded-lg bg-muted p-1">
+          <Button
+            variant={view === 'overview' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('overview')}
+            className="gap-1.5"
+          >
+            <Home className="h-4 w-4" />
+            Overview
+          </Button>
           <Button
             variant={view === 'myview' ? 'default' : 'ghost'}
             size="sm"
