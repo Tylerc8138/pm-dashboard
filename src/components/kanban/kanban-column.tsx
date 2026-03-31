@@ -37,7 +37,7 @@ export function KanbanColumn({ id, label, tasks, onEditTask, onNewTask }: Kanban
         {highCount > 0 && <span className="text-xs text-red-600">{highCount} high</span>}
       </div>
 
-      <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 overflow-y-auto p-3 min-h-[200px]">
+      <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 overflow-y-auto p-3 min-h-[300px]">
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <TaskCard key={task.id} task={task} onClick={() => onEditTask(task)} />

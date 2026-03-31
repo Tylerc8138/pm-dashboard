@@ -8,7 +8,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
-  closestCorners,
+  rectIntersection,
 } from '@dnd-kit/core'
 import { KanbanColumn } from './kanban-column'
 import { TaskCard } from './task-card'
@@ -116,7 +116,7 @@ export function KanbanBoard({ onEditTask, onNewTask }: KanbanBoardProps) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
