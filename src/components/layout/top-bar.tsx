@@ -37,16 +37,16 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
     : 'All Teams'
 
   return (
-    <header className="flex items-center justify-between border-b bg-white px-4 py-3 min-w-0 overflow-x-auto">
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground text-sm font-bold">
+    <header className="flex items-center justify-between border-b bg-white px-3 py-2 gap-2" style={{ fontSize: 'clamp(10px, 1.1vw, 14px)' }}>
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground font-bold" style={{ fontSize: '1em' }}>
             V
           </div>
-          <h1 className="text-lg font-semibold whitespace-nowrap">Visa AEO Strategy Dashboard</h1>
+          <h1 className="font-semibold whitespace-nowrap" style={{ fontSize: '1.25em' }}>Visa AEO Strategy Dashboard</h1>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg bg-muted p-1 shrink-0">
+        <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
           <Button
             variant={view === 'overview' ? 'default' : 'ghost'}
             size="sm"
@@ -95,9 +95,9 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <Select value={sprintId ?? 'all'} onValueChange={(v: string | null) => setSprintId(!v || v === 'all' ? null : v)}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[14em]">
             <span className="truncate">{sprintLabel}</span>
           </SelectTrigger>
           <SelectContent>
@@ -111,7 +111,7 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
         </Select>
 
         <Select value={teamId ?? 'all'} onValueChange={(v: string | null) => setTeamId(!v || v === 'all' ? null : v)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[10em]">
             <span className="truncate">{teamLabel}</span>
           </SelectTrigger>
           <SelectContent>
