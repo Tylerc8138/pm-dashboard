@@ -7,6 +7,7 @@ import { TeamView } from '@/components/team-view/team-view'
 import { TaskDialog } from '@/components/tasks/task-dialog'
 import { MyView } from '@/components/my-view/my-view'
 import { LinksView } from '@/components/links/links-view'
+import { SprintManager } from '@/components/sprints/sprint-manager'
 import { LoginPage } from '@/pages/login'
 import { GatePage } from '@/pages/gate'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -17,6 +18,7 @@ function Dashboard() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo')
+  const [sprintManagerOpen, setSprintManagerOpen] = useState(false)
 
   useRealtime()
 
@@ -39,7 +41,7 @@ function Dashboard() {
   return (
     <FilterProvider>
       <div className="flex h-screen flex-col overflow-hidden">
-        <TopBar view={view} onViewChange={setView} />
+        <TopBar view={view} onViewChange={setView} onManageSprints={() => setSprintManagerOpen(true)} />
         <main className="flex-1 overflow-auto">
           {view === 'myview' ? (
             <MyView onEditTask={handleEditTask} />
@@ -56,6 +58,10 @@ function Dashboard() {
           onClose={handleCloseDialog}
           task={editingTask}
           defaultStatus={defaultStatus}
+        />
+        <SprintManager
+          open={sprintManagerOpen}
+          onClose={() => setSprintManagerOpen(false)}
         />
       </div>
     </FilterProvider>

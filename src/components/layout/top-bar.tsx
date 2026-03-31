@@ -6,19 +6,25 @@ import { useFilters } from '@/contexts/filter-context'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle, LinkIcon } from 'lucide-react'
+import { LayoutGrid, Users, LogOut, ChevronDown, UserCircle, LinkIcon, Settings } from 'lucide-react'
+
+const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
 
 interface TopBarProps {
   view: 'kanban' | 'teams' | 'myview' | 'links'
   onViewChange: (view: 'kanban' | 'teams' | 'myview' | 'links') => void
+  onManageSprints?: () => void
 }
 
-export function TopBar({ view, onViewChange }: TopBarProps) {
+export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
   const { signOut } = useAuth()
   const { data: member } = useCurrentMember()
   const { data: sprints } = useSprints()
   const { data: teams } = useTeams()
   const { sprintId, setSprintId, teamId, setTeamId } = useFilters()
+
+  const memberTeam = teams?.find(t => t.id === member?.team_id)
+  const isPm = memberTeam?.name === 'PM' || (member?.email && PM_OVERRIDE_EMAILS.includes(member.email))
 
   const sprintLabel = sprintId
     ? sprints?.find((s) => s.id === sprintId)
@@ -106,6 +112,13 @@ export function TopBar({ view, onViewChange }: TopBarProps) {
             ))}
           </SelectContent>
         </Select>
+
+        {isPm && onManageSprints && (
+          <Button variant="outline" size="sm" onClick={onManageSprints} className="gap-1.5">
+            <Settings className="h-3.5 w-3.5" />
+            Sprints
+          </Button>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm hover:bg-accent transition-colors cursor-pointer">
