@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { FilterProvider } from '@/contexts/filter-context'
-import { TopBar } from '@/components/layout/top-bar'
-import { KanbanBoard } from '@/components/kanban/kanban-board'
-import { TeamView } from '@/components/team-view/team-view'
+import { TopBar, type ViewType } from '@/components/layout/top-bar'
+import { AllTasksPage } from '@/components/all-tasks/all-tasks-page'
 import { TaskDialog } from '@/components/tasks/task-dialog'
 import { MyView } from '@/components/my-view/my-view'
 import { LinksView } from '@/components/links/links-view'
@@ -15,7 +14,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import type { Task, TaskStatus } from '@/types/database'
 
 function Dashboard() {
-  const [view, setView] = useState<'kanban' | 'teams' | 'myview' | 'links' | 'overview'>('overview')
+  const [view, setView] = useState<ViewType>('overview')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo')
@@ -48,12 +47,10 @@ function Dashboard() {
             <OverviewPage />
           ) : view === 'myview' ? (
             <MyView onEditTask={handleEditTask} />
-          ) : view === 'kanban' ? (
-            <KanbanBoard onEditTask={handleEditTask} onNewTask={handleNewTask} />
-          ) : view === 'links' ? (
-            <LinksView onEditTask={handleEditTask} />
+          ) : view === 'alltasks' ? (
+            <AllTasksPage onEditTask={handleEditTask} onNewTask={handleNewTask} />
           ) : (
-            <TeamView onEditTask={handleEditTask} />
+            <LinksView onEditTask={handleEditTask} />
           )}
         </main>
         <TaskDialog
