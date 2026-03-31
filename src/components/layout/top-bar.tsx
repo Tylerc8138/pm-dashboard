@@ -43,7 +43,7 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground text-sm font-bold">
             V
           </div>
-          <h1 className="text-lg font-semibold">Visa CLI Dashboard</h1>
+          <h1 className="text-lg font-semibold">Visa AEO Strategy Dashboard</h1>
         </div>
 
         <div className="ml-4 flex items-center gap-1 rounded-lg bg-muted p-1">

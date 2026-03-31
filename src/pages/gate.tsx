@@ -58,7 +58,7 @@ export function GatePage({ onSuccess }: GatePageProps) {
               Continue
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Visa CLI Dashboard &middot; Internal Use Only
+              Visa AEO Strategy Dashboard &middot; Internal Use Only
             </p>
           </form>
         </CardContent>

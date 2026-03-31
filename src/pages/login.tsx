@@ -35,7 +35,7 @@ export function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
             V
           </div>
-          <CardTitle className="text-2xl">Visa CLI Dashboard</CardTitle>
+          <CardTitle className="text-2xl">Visa AEO Strategy Dashboard</CardTitle>
           <CardDescription>
             Agentic Payments & Developer Growth Initiative
           </CardDescription>
