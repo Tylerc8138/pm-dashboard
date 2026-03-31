@@ -74,11 +74,14 @@ export interface TaskUpdate {
   blocked_reason?: string | null
 }
 
+export type ReferenceType = 'link' | 'image'
+
 export interface TaskReference {
   id: string
   task_id: string
   label: string
   url: string
+  type: ReferenceType
   created_by: string | null
   created_at: string
 }
@@ -87,6 +90,7 @@ export interface TaskReferenceInsert {
   task_id: string
   label: string
   url: string
+  type?: ReferenceType
   created_by?: string | null
 }
 

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useReferences } from '@/hooks/use-references'
-import { AlertCircle, GripVertical, Link } from 'lucide-react'
+import { AlertCircle, GripVertical, Link, ImageIcon } from 'lucide-react'
 import type { Task, TaskPriority } from '@/types/database'
 
 interface TaskCardProps {
@@ -83,10 +83,16 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
         <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[task.priority]}`}>
           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
         </Badge>
-        {references.length > 0 && (
+        {references.filter(r => r.type === 'link' || !r.type).length > 0 && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
             <Link className="h-2.5 w-2.5" />
-            {references.length}
+            {references.filter(r => r.type === 'link' || !r.type).length}
+          </Badge>
+        )}
+        {references.filter(r => r.type === 'image').length > 0 && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+            <ImageIcon className="h-2.5 w-2.5" />
+            {references.filter(r => r.type === 'image').length}
           </Badge>
         )}
         {task.is_blocked && (

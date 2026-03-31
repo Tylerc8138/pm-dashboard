@@ -3,12 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { useTasks } from './use-tasks'
 import { useTeams } from './use-teams'
 import { useMembers } from './use-members'
-import type { TaskReference } from '@/types/database'
+import type { TaskReference, ReferenceType } from '@/types/database'
 
 export interface EnrichedReference {
   id: string
   label: string
   url: string
+  type: ReferenceType
   created_at: string
   task_id: string
   task_title: string
@@ -47,6 +48,7 @@ export function useAllReferences(sprintId?: string | null) {
           id: ref.id,
           label: ref.label,
           url: ref.url,
+          type: ref.type ?? 'link',
           created_at: ref.created_at,
           task_id: ref.task_id,
           task_title: task?.title ?? 'Unknown task',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,9 +11,10 @@ import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
 import { useCurrentMember } from '@/hooks/use-current-member'
 import { useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/use-tasks'
-import { useReferences, useCreateReference, useDeleteReference } from '@/hooks/use-references'
+import { useReferences, useCreateReference, useDeleteReference, uploadImage } from '@/hooks/use-references'
 import type { Task, TaskStatus, TaskPriority } from '@/types/database'
-import { Trash2, Plus, ExternalLink, Link, X, User } from 'lucide-react'
+import { Trash2, Plus, ExternalLink, Link, X, User, ImagePlus, Upload } from 'lucide-react'
+import React from 'react'
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   backlog: 'Backlog',
@@ -65,6 +66,13 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const [refLabel, setRefLabel] = useState('')
   const [refUrl, setRefUrl] = useState('')
 
+  const [showImageForm, setShowImageForm] = useState(false)
+  const [imageLabel, setImageLabel] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+
   useEffect(() => {
     if (task) {
       setTitle(task.title)
@@ -89,8 +97,12 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
     }
     setConfirmDelete(false)
     setShowRefForm(false)
+    setShowImageForm(false)
     setRefLabel('')
     setRefUrl('')
+    setImageLabel('')
+    setImageFile(null)
+    setImagePreview(null)
   }, [task, open, defaultStatus, sprints, teams])
 
   const teamMembers = members?.filter((m) => m.team_id === teamId) ?? []
@@ -109,7 +121,6 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
   const handleSave = async () => {
     if (!title.trim() || !sprintId || !teamId) return
-
     const payload = {
       title: title.trim(),
       description,
@@ -121,7 +132,6 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       is_blocked: isBlocked,
       blocked_reason: isBlocked ? blockedReason : null,
     }
-
     try {
       if (isEdit) {
         await updateTask.mutateAsync({ id: task.id, ...payload })
@@ -142,10 +152,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
 
   const handleDelete = async () => {
     if (!task) return
-    if (!confirmDelete) {
-      setConfirmDelete(true)
-      return
-    }
+    if (!confirmDelete) { setConfirmDelete(true); return }
     await deleteTask.mutateAsync(task.id)
     onClose()
   }
@@ -153,22 +160,56 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const handleAddReference = async () => {
     if (!task || !refLabel.trim() || !refUrl.trim()) return
     let url = refUrl.trim()
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url
-    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url
     try {
       await createReference.mutateAsync({
-        task_id: task.id,
-        label: refLabel.trim(),
-        url,
-        created_by: currentMember?.id ?? null,
+        task_id: task.id, label: refLabel.trim(), url, type: 'link', created_by: currentMember?.id ?? null,
       })
-      setRefLabel('')
-      setRefUrl('')
-      setShowRefForm(false)
+      setRefLabel(''); setRefUrl(''); setShowRefForm(false)
     } catch (err: unknown) {
       const e = err as Record<string, unknown>
       alert(`Error adding reference: ${e?.message ?? JSON.stringify(err)}`)
+    }
+  }
+
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) { alert('Please select an image file'); return }
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleFileSelect(file)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false)
+  }, [])
+
+  const handleUploadImage = async () => {
+    if (!task || !imageFile || !imageLabel.trim()) return
+    setUploading(true)
+    try {
+      const url = await uploadImage(imageFile, task.id)
+      await createReference.mutateAsync({
+        task_id: task.id, label: imageLabel.trim(), url, type: 'image', created_by: currentMember?.id ?? null,
+      })
+      setImageLabel(''); setImageFile(null); setImagePreview(null); setShowImageForm(false)
+    } catch (err: unknown) {
+      const e = err as Record<string, unknown>
+      alert(`Error uploading image: ${e?.message ?? JSON.stringify(err)}`)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -176,6 +217,9 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
     if (!task) return
     await deleteReference.mutateAsync({ id: refId, taskId: task.id })
   }
+
+  const linkRefs = references.filter((r) => r.type === 'link' || !r.type)
+  const imageRefs = references.filter((r) => r.type === 'image')
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -193,13 +237,10 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional details"
-              rows={2}
+              id="description" value={description} onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional details" rows={2}
               style={{ fieldSizing: 'fixed' } as React.CSSProperties}
-              className="resize-vertical min-h-[60px] max-h-[200px] overflow-y-auto word-break-break-word whitespace-pre-wrap break-words"
+              className="resize-vertical min-h-[60px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-words"
             />
           </div>
 
@@ -207,9 +248,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={(v: string | null) => v && setStatus(v as TaskStatus)}>
-                <SelectTrigger>
-                  <span>{STATUS_LABELS[status]}</span>
-                </SelectTrigger>
+                <SelectTrigger><span>{STATUS_LABELS[status]}</span></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog</SelectItem>
                   <SelectItem value="todo">To Do</SelectItem>
@@ -218,13 +257,10 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(v: string | null) => v && setPriority(v as TaskPriority)}>
-                <SelectTrigger>
-                  <span>{PRIORITY_LABELS[priority]}</span>
-                </SelectTrigger>
+                <SelectTrigger><span>{PRIORITY_LABELS[priority]}</span></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
@@ -237,9 +273,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
           <div className="space-y-2">
             <Label>Sprint</Label>
             <Select value={sprintId} onValueChange={(v: string | null) => setSprintId(v ?? '')}>
-              <SelectTrigger className="w-full">
-                <span className="truncate">{sprintLabel}</span>
-              </SelectTrigger>
+              <SelectTrigger className="w-full"><span className="truncate">{sprintLabel}</span></SelectTrigger>
               <SelectContent>
                 {sprints?.map((s) => (
                   <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>
@@ -252,34 +286,24 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
             <div className="space-y-2">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={(v: string | null) => { setTeamId(v ?? ''); setOwnerId('unassigned') }}>
-                <SelectTrigger className="w-full">
-                  <span className="truncate">{teamLabel}</span>
-                </SelectTrigger>
+                <SelectTrigger className="w-full"><span className="truncate">{teamLabel}</span></SelectTrigger>
                 <SelectContent>
-                  {teams?.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
+                  {teams?.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label>Assigned To</Label>
               <Select value={ownerId} onValueChange={(v: string | null) => setOwnerId(v ?? 'unassigned')}>
-                <SelectTrigger className="w-full">
-                  <span className="truncate">{ownerLabel}</span>
-                </SelectTrigger>
+                <SelectTrigger className="w-full"><span className="truncate">{ownerLabel}</span></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {teamMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                  ))}
+                  {teamMembers.map((m) => (<SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Assigned By - shown on edit as read-only, auto-set on create */}
           {isEdit && assignedByMember && (
             <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
               <User className="h-4 w-4 text-muted-foreground" />
@@ -294,12 +318,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
               Blocked
             </label>
             {isBlocked && (
-              <Input
-                value={blockedReason}
-                onChange={(e) => setBlockedReason(e.target.value)}
-                placeholder="Reason for block"
-                className="flex-1"
-              />
+              <Input value={blockedReason} onChange={(e) => setBlockedReason(e.target.value)} placeholder="Reason for block" className="flex-1" />
             )}
           </div>
 
@@ -313,15 +332,22 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                     <Link className="h-4 w-4" />
                     References
                   </Label>
-                  <Button variant="ghost" size="sm" onClick={() => setShowRefForm(!showRefForm)} className="gap-1 text-xs">
-                    <Plus className="h-3 w-3" />
-                    Add Link
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => { setShowRefForm(!showRefForm); setShowImageForm(false) }} className="gap-1 text-xs">
+                      <Plus className="h-3 w-3" />
+                      Link
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setShowImageForm(!showImageForm); setShowRefForm(false) }} className="gap-1 text-xs">
+                      <ImagePlus className="h-3 w-3" />
+                      Screenshot
+                    </Button>
+                  </div>
                 </div>
 
-                {references.length > 0 && (
+                {/* Existing link references */}
+                {linkRefs.length > 0 && (
                   <div className="space-y-1.5">
-                    {references.map((ref) => (
+                    {linkRefs.map((ref) => (
                       <div key={ref.id} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
                         <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <a href={ref.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-sm text-primary hover:underline truncate" onClick={(e) => e.stopPropagation()}>
@@ -335,17 +361,85 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                   </div>
                 )}
 
-                {references.length === 0 && !showRefForm && (
-                  <p className="text-xs text-muted-foreground italic">No references attached. Add links to documents, designs, or other materials.</p>
+                {/* Existing image references */}
+                {imageRefs.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {imageRefs.map((ref) => (
+                      <div key={ref.id} className="relative group rounded-md border overflow-hidden">
+                        <a href={ref.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <img src={ref.url} alt={ref.label} className="w-full h-32 object-cover" />
+                        </a>
+                        <div className="px-2 py-1.5 bg-muted/50 flex items-center justify-between">
+                          <span className="text-xs font-medium truncate">{ref.label}</span>
+                          <button onClick={() => handleDeleteReference(ref.id)} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
 
+                {references.length === 0 && !showRefForm && !showImageForm && (
+                  <p className="text-xs text-muted-foreground italic">No references attached. Add links or screenshots.</p>
+                )}
+
+                {/* Add link form */}
                 {showRefForm && (
                   <div className="space-y-2 rounded-md border bg-muted/20 p-3">
                     <Input value={refLabel} onChange={(e) => setRefLabel(e.target.value)} placeholder="Label (e.g. Landing page draft v2)" className="text-sm" />
                     <Input value={refUrl} onChange={(e) => setRefUrl(e.target.value)} placeholder="URL (e.g. docs.google.com/...)" className="text-sm" />
                     <div className="flex gap-2 justify-end">
                       <Button variant="ghost" size="sm" onClick={() => { setShowRefForm(false); setRefLabel(''); setRefUrl('') }}>Cancel</Button>
-                      <Button size="sm" onClick={handleAddReference} disabled={!refLabel.trim() || !refUrl.trim()}>Add</Button>
+                      <Button size="sm" onClick={handleAddReference} disabled={!refLabel.trim() || !refUrl.trim()}>Add Link</Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Add screenshot form */}
+                {showImageForm && (
+                  <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                    <Input value={imageLabel} onChange={(e) => setImageLabel(e.target.value)} placeholder="Screenshot title (e.g. Homepage mockup v2)" className="text-sm" />
+
+                    {!imagePreview ? (
+                      <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                        className={`flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                          isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
+                        }`}
+                      >
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">
+                          Drop a screenshot here or <span className="text-primary underline">browse</span>
+                        </p>
+                        <input
+                          id="image-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                        />
+                      </div>
+                    ) : (
+                      <div className="relative rounded-md border overflow-hidden">
+                        <img src={imagePreview} alt="Preview" className="w-full max-h-[200px] object-contain bg-muted/50" />
+                        <button
+                          onClick={() => { setImageFile(null); setImagePreview(null) }}
+                          className="absolute top-1 right-1 rounded-full bg-black/50 p-1 text-white hover:bg-black/70 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => { setShowImageForm(false); setImageLabel(''); setImageFile(null); setImagePreview(null) }}>Cancel</Button>
+                      <Button size="sm" onClick={handleUploadImage} disabled={!imageLabel.trim() || !imageFile || uploading}>
+                        {uploading ? 'Uploading...' : 'Upload Screenshot'}
+                      </Button>
                     </div>
                   </div>
                 )}

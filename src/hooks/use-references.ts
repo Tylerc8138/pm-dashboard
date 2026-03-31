@@ -33,6 +33,7 @@ export function useCreateReference() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['references', variables.task_id] })
+      qc.invalidateQueries({ queryKey: ['all-references'] })
     },
   })
 }
@@ -48,6 +49,24 @@ export function useDeleteReference() {
     },
     onSuccess: (taskId) => {
       qc.invalidateQueries({ queryKey: ['references', taskId] })
+      qc.invalidateQueries({ queryKey: ['all-references'] })
     },
   })
+}
+
+export async function uploadImage(file: File, taskId: string): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'png'
+  const path = `${taskId}/${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('task-attachments')
+    .upload(path, file, { contentType: file.type })
+
+  if (error) throw error
+
+  const { data } = supabase.storage
+    .from('task-attachments')
+    .getPublicUrl(path)
+
+  return data.publicUrl
 }
