@@ -12,13 +12,12 @@ const HEALTH_CONFIG: Record<MemberHealth, { color: string; label: string }> = {
 
 export function getMemberHealth(tasks: Task[]): MemberHealth {
   const activeTasks = tasks.filter((t) => t.status !== 'done')
-  const totalSP = activeTasks.reduce((sum, t) => sum + (t.story_points ?? 0), 0)
   const hasBlocked = activeTasks.some((t) => t.is_blocked)
 
   if (hasBlocked) return 'blocked'
   if (activeTasks.length === 0) return 'idle'
-  if (totalSP > 13) return 'overloaded'
-  if (totalSP > 8) return 'heavy'
+  if (activeTasks.length >= 6) return 'overloaded'
+  if (activeTasks.length >= 4) return 'heavy'
   return 'on_track'
 }
 

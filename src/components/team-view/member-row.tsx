@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { HealthIndicator, getMemberHealth } from './health-indicator'
-import type { Member, Task } from '@/types/database'
+import type { Member, Task, TaskPriority } from '@/types/database'
 
 const STATUS_LABELS: Record<string, string> = {
   backlog: 'Backlog',
@@ -16,6 +16,12 @@ const STATUS_COLORS: Record<string, string> = {
   done: 'bg-green-100 text-green-600',
 }
 
+const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-amber-100 text-amber-700',
+  low: 'bg-gray-100 text-gray-600',
+}
+
 interface MemberRowProps {
   member: Member | null
   tasks: Task[]
@@ -24,7 +30,6 @@ interface MemberRowProps {
 
 export function MemberRow({ member, tasks, onEditTask }: MemberRowProps) {
   const activeTasks = tasks.filter((t) => t.status !== 'done')
-  const totalSP = activeTasks.reduce((sum, t) => sum + (t.story_points ?? 0), 0)
   const health = getMemberHealth(tasks)
 
   return (
@@ -36,7 +41,7 @@ export function MemberRow({ member, tasks, onEditTask }: MemberRowProps) {
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{member?.full_name ?? 'Unassigned'}</p>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">{totalSP} SP active</span>
+            <span className="text-xs text-muted-foreground">{activeTasks.length} active</span>
             <HealthIndicator health={health} size="sm" />
           </div>
         </div>
@@ -55,9 +60,9 @@ export function MemberRow({ member, tasks, onEditTask }: MemberRowProps) {
               {STATUS_LABELS[task.status]}
             </Badge>
             <span className="max-w-[200px] truncate">{task.title}</span>
-            {task.story_points != null && (
-              <span className="text-muted-foreground">({task.story_points})</span>
-            )}
+            <Badge variant="secondary" className={`text-[9px] px-1 py-0 ${PRIORITY_COLORS[task.priority]}`}>
+              {task.priority.charAt(0).toUpperCase()}
+            </Badge>
           </button>
         ))}
         {tasks.length === 0 && (

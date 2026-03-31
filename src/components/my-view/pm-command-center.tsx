@@ -8,7 +8,7 @@ import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
 import { useFilters } from '@/contexts/filter-context'
-import { CheckCircle2, AlertTriangle, Activity, Users, Clock } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Flame, Users, Clock } from 'lucide-react'
 import type { Task } from '@/types/database'
 
 const TEAM_HEALTH_COLORS: Record<string, string> = {
@@ -38,9 +38,8 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
     const done = tasks.filter((t) => t.status === 'done')
     const blocked = tasks.filter((t) => t.is_blocked)
     const inProgress = tasks.filter((t) => t.status === 'in_progress')
-    const totalSP = tasks.reduce((s, t) => s + (t.story_points ?? 0), 0)
-    const doneSP = done.reduce((s, t) => s + (t.story_points ?? 0), 0)
-    return { done, blocked, inProgress, totalSP, doneSP, total: tasks.length }
+    const highPriority = tasks.filter((t) => t.priority === 'high' && t.status !== 'done')
+    return { done, blocked, inProgress, highPriority, total: tasks.length }
   }, [tasks])
 
   const teamHealth = useMemo(() => {
@@ -92,11 +91,10 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
           color={stats.blocked.length > 0 ? 'red' : 'default'}
         />
         <PortalSummaryCard
-          label="Story Points Done"
-          count={stats.doneSP}
-          total={stats.totalSP}
-          icon={Activity}
-          color="blue"
+          label="High Priority"
+          count={stats.highPriority.length}
+          icon={Flame}
+          color={stats.highPriority.length > 0 ? 'red' : 'default'}
         />
         <PortalSummaryCard
           label="In Progress"
@@ -158,7 +156,7 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
               <div className="grid grid-cols-[1fr_100px_100px_1fr_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <span>Task</span>
                 <span>Team</span>
-                <span>Owner</span>
+                <span>Assigned To</span>
                 <span>Reason</span>
                 <span className="text-right">Age</span>
               </div>

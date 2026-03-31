@@ -22,7 +22,7 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ id, label, tasks, onEditTask, onNewTask }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({ id })
-  const totalPoints = tasks.reduce((sum, t) => sum + (t.story_points ?? 0), 0)
+  const highCount = tasks.filter((t) => t.priority === 'high').length
 
   return (
     <div className="flex min-w-[280px] max-w-[320px] flex-1 flex-col rounded-xl bg-muted/50 border">
@@ -34,7 +34,7 @@ export function KanbanColumn({ id, label, tasks, onEditTask, onNewTask }: Kanban
             {tasks.length}
           </span>
         </div>
-        <span className="text-xs text-muted-foreground">{totalPoints} SP</span>
+        {highCount > 0 && <span className="text-xs text-red-600">{highCount} high</span>}
       </div>
 
       <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 overflow-y-auto p-3 min-h-[200px]">

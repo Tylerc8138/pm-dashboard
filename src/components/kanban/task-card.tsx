@@ -5,7 +5,7 @@ import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useReferences } from '@/hooks/use-references'
 import { AlertCircle, GripVertical, Link } from 'lucide-react'
-import type { Task } from '@/types/database'
+import type { Task, TaskPriority } from '@/types/database'
 
 interface TaskCardProps {
   task: Task
@@ -20,6 +20,12 @@ const TEAM_COLORS: Record<string, string> = {
   Comms: 'bg-orange-100 text-orange-700',
   Legal: 'bg-red-100 text-red-700',
   'Search Strategy': 'bg-teal-100 text-teal-700',
+}
+
+const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-amber-100 text-amber-700',
+  low: 'bg-gray-100 text-gray-600',
 }
 
 export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
@@ -44,6 +50,7 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 
   const team = teams?.find((t) => t.id === task.team_id)
   const owner = members?.find((m) => m.id === task.owner_id)
+  const assignedBy = members?.find((m) => m.id === task.assigned_by_id)
 
   return (
     <div
@@ -73,11 +80,9 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
             {team.name}
           </Badge>
         )}
-        {task.story_points != null && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-            {task.story_points} SP
-          </Badge>
-        )}
+        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[task.priority]}`}>
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+        </Badge>
         {references.length > 0 && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
             <Link className="h-2.5 w-2.5" />
@@ -89,12 +94,21 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
         )}
       </div>
 
-      {owner && (
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium">
-            {owner.full_name.split(' ').map((n) => n[0]).join('')}
-          </div>
-          <span className="text-xs text-muted-foreground">{owner.full_name}</span>
+      {(owner || assignedBy) && (
+        <div className="mt-2 space-y-0.5">
+          {owner && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium">
+                {owner.full_name.split(' ').map((n) => n[0]).join('')}
+              </div>
+              <span className="text-xs text-muted-foreground">{owner.full_name}</span>
+            </div>
+          )}
+          {assignedBy && (
+            <p className="text-[10px] text-muted-foreground pl-6.5">
+              Assigned by {assignedBy.full_name}
+            </p>
+          )}
         </div>
       )}
     </div>

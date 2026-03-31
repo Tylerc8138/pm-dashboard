@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
 import { AlertCircle, Clock } from 'lucide-react'
-import type { Task, TaskStatus } from '@/types/database'
+import type { Task, TaskStatus, TaskPriority } from '@/types/database'
 
 interface StatusConfig {
   key: TaskStatus
@@ -17,6 +17,12 @@ interface PortalTaskListProps {
   tasks: Task[]
   statusConfig: StatusConfig[]
   onEditTask: (task: Task) => void
+}
+
+const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-amber-100 text-amber-700',
+  low: 'bg-gray-100 text-gray-600',
 }
 
 function getDaysInStatus(task: Task): number {
@@ -55,6 +61,7 @@ export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskLi
             )}
             {group.tasks.map((task) => {
               const owner = members?.find((m) => m.id === task.owner_id)
+              const assignedBy = members?.find((m) => m.id === task.assigned_by_id)
               const sprint = sprints?.find((s) => s.id === task.sprint_id)
               const days = getDaysInStatus(task)
 
@@ -72,17 +79,22 @@ export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskLi
                       {owner && (
                         <span className="text-xs text-muted-foreground">{owner.full_name}</span>
                       )}
+                      {assignedBy && (
+                        <span className="text-xs text-muted-foreground">
+                          (from {assignedBy.full_name})
+                        </span>
+                      )}
                       {sprint && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                           Sprint {sprint.number}
                         </Badge>
                       )}
-                      {task.story_points != null && (
-                        <span className="text-xs text-muted-foreground">{task.story_points} SP</span>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[task.priority]}`}>
+                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                    </Badge>
                     {task.is_blocked && (
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}

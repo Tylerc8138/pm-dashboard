@@ -1,4 +1,5 @@
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'done'
+export type TaskPriority = 'high' | 'medium' | 'low'
 export type MemberRole = 'lead' | 'member'
 
 export interface Team {
@@ -32,10 +33,11 @@ export interface Task {
   title: string
   description: string
   status: TaskStatus
-  story_points: number | null
+  priority: TaskPriority
   sprint_id: string
   team_id: string
   owner_id: string | null
+  assigned_by_id: string | null
   position: number
   is_blocked: boolean
   blocked_reason: string | null
@@ -47,10 +49,11 @@ export interface TaskInsert {
   title: string
   description?: string
   status?: TaskStatus
-  story_points?: number | null
+  priority?: TaskPriority
   sprint_id: string
   team_id: string
   owner_id?: string | null
+  assigned_by_id?: string | null
   position?: number
   is_blocked?: boolean
   blocked_reason?: string | null
@@ -61,10 +64,11 @@ export interface TaskUpdate {
   title?: string
   description?: string
   status?: TaskStatus
-  story_points?: number | null
+  priority?: TaskPriority
   sprint_id?: string
   team_id?: string
   owner_id?: string | null
+  assigned_by_id?: string | null
   position?: number
   is_blocked?: boolean
   blocked_reason?: string | null

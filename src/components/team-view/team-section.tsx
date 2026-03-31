@@ -13,17 +13,18 @@ interface TeamSectionProps {
 }
 
 export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionProps) {
-  const totalPoints = tasks.reduce((sum, t) => sum + (t.story_points ?? 0), 0)
-  const donePoints = tasks.filter((t) => t.status === 'done').reduce((sum, t) => sum + (t.story_points ?? 0), 0)
+  const totalTasks = tasks.length
+  const doneTasks = tasks.filter((t) => t.status === 'done').length
   const blockedCount = tasks.filter((t) => t.is_blocked).length
+  const highPriority = tasks.filter((t) => t.priority === 'high' && t.status !== 'done').length
 
   const teamHealth = useMemo((): MemberHealth => {
     if (blockedCount > 0) return 'blocked'
-    if (totalPoints === 0) return 'idle'
-    const progress = totalPoints > 0 ? donePoints / totalPoints : 0
+    if (totalTasks === 0) return 'idle'
+    const progress = totalTasks > 0 ? doneTasks / totalTasks : 0
     if (progress >= 0.5) return 'on_track'
     return 'heavy'
-  }, [blockedCount, totalPoints, donePoints])
+  }, [blockedCount, totalTasks, doneTasks])
 
   return (
     <Card>
@@ -37,7 +38,12 @@ export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionPro
             <HealthIndicator health={teamHealth} />
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>{donePoints}/{totalPoints} SP completed</span>
+            <span>{doneTasks}/{totalTasks} tasks done</span>
+            {highPriority > 0 && (
+              <Badge variant="secondary" className="text-xs bg-red-100 text-red-700">
+                {highPriority} high priority
+              </Badge>
+            )}
             {blockedCount > 0 && (
               <Badge variant="destructive" className="text-xs">
                 {blockedCount} blocked
@@ -55,7 +61,6 @@ export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionPro
             onEditTask={onEditTask}
           />
         ))}
-        {/* Unassigned tasks */}
         {tasks.filter((t) => !t.owner_id).length > 0 && (
           <MemberRow
             member={null}
