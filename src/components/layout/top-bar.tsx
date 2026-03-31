@@ -37,13 +37,13 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
     : 'All Teams'
 
   return (
-    <header className="flex items-center justify-between border-b bg-white px-3 py-2 gap-4" style={{ fontSize: 'clamp(10px, 1.1vw, 14px)' }}>
+    <header className="flex items-center justify-between border-b bg-white px-3 py-2 gap-3" style={{ fontSize: 'clamp(8px, 0.95vw, 14px)' }}>
       <div className="flex items-center gap-2 shrink-0">
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground font-bold" style={{ fontSize: '1em' }}>
             V
           </div>
-          <h1 className="font-semibold whitespace-nowrap" style={{ fontSize: '1.25em' }}>Visa AEO Strategy Dashboard</h1>
+          <h1 className="font-semibold whitespace-nowrap" style={{ fontSize: '1.2em' }}>Visa AEO Dashboard</h1>
         </div>
 
         <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
@@ -97,7 +97,7 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
 
       <div className="flex items-center gap-2 shrink-0">
         <Select value={sprintId ?? 'all'} onValueChange={(v: string | null) => setSprintId(!v || v === 'all' ? null : v)}>
-          <SelectTrigger className="w-[14em]">
+          <SelectTrigger className="w-[12em]">
             <span className="truncate">{sprintLabel}</span>
           </SelectTrigger>
           <SelectContent>
@@ -130,12 +130,12 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
         )}
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm hover:bg-accent transition-colors cursor-pointer">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
+          <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-accent transition-colors cursor-pointer">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-medium" style={{ fontSize: '0.75em' }}>
               {member?.full_name?.split(' ').map(n => n[0]).join('') ?? '?'}
             </div>
-            <span className="text-sm">{member?.full_name ?? 'Loading...'}</span>
-            <ChevronDown className="h-3 w-3" />
+            <span className="whitespace-nowrap" style={{ fontSize: '1em' }}>{member?.full_name ?? '...'}</span>
+            <ChevronDown className="h-3 w-3 shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={signOut} className="gap-2">
