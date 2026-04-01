@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { FilterProvider } from '@/contexts/filter-context'
 import { TopBar, type ViewType } from '@/components/layout/top-bar'
@@ -11,14 +11,32 @@ import { SprintManager } from '@/components/sprints/sprint-manager'
 import { LoginPage } from '@/pages/login'
 import { GatePage } from '@/pages/gate'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useCurrentMember } from '@/hooks/use-current-member'
+import { useTeams } from '@/hooks/use-teams'
 import type { Task, TaskStatus } from '@/types/database'
 
+const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
+
 function Dashboard() {
-  const [view, setView] = useState<ViewType>('overview')
+  const { data: member } = useCurrentMember()
+  const { data: teams } = useTeams()
+
+  // Determine default view based on role
+  const memberTeam = teams?.find(t => t.id === member?.team_id)
+  const isPm = memberTeam?.name === 'PM' || (member?.email && PM_OVERRIDE_EMAILS.includes(member.email))
+
+  const [view, setView] = useState<ViewType | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo')
   const [sprintManagerOpen, setSprintManagerOpen] = useState(false)
+
+  // Set default view once we know the user's role
+  useEffect(() => {
+    if (view === null && member && teams) {
+      setView(isPm ? 'overview' : 'myview')
+    }
+  }, [member, teams, isPm, view])
 
   useRealtime()
 
@@ -36,6 +54,15 @@ function Dashboard() {
   const handleCloseDialog = () => {
     setDialogOpen(false)
     setEditingTask(null)
+  }
+
+  // Show loading while determining default view
+  if (!view) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-muted-foreground">Loading dashboard...</div>
+      </div>
+    )
   }
 
   return (
