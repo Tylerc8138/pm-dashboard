@@ -4,7 +4,6 @@ import { PortalSummaryCard } from './portal-summary-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useTasks } from '@/hooks/use-tasks'
-import { useMembers } from '@/hooks/use-members'
 import { useTeams } from '@/hooks/use-teams'
 import { useFilters } from '@/contexts/filter-context'
 import { Inbox, Scale, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
@@ -28,7 +27,6 @@ interface LegalPortalProps {
 export function LegalPortal({ teamId, onEditTask }: LegalPortalProps) {
   const { sprintId } = useFilters()
   const { data: tasks = [] } = useTasks({ sprintId, teamId })
-  const { data: members = [] } = useMembers()
   const { data: teams = [] } = useTeams()
 
   const stats = useMemo(() => ({
@@ -43,12 +41,11 @@ export function LegalPortal({ teamId, onEditTask }: LegalPortalProps) {
       .filter((t) => t.status === 'todo' || t.status === 'in_progress')
       .map((t) => ({
         task: t,
-        owner: members.find((m) => m.id === t.owner_id),
         submittingTeam: teams.find((tm) => tm.id === t.team_id),
         days: getDaysInStatus(t),
       }))
       .sort((a, b) => b.days - a.days)
-  }, [tasks, members, teams])
+  }, [tasks, teams])
 
   return (
     <PortalLayout title="Legal Portal" subtitle="Content review queue and compliance approvals">

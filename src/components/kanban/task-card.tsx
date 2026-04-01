@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useReferences } from '@/hooks/use-references'
-import { AlertCircle, GripVertical, Link, ImageIcon } from 'lucide-react'
+import { useAssignees } from '@/hooks/use-assignees'
+import { AlertCircle, GripVertical, Link, ImageIcon, Users } from 'lucide-react'
 import type { Task, TaskPriority } from '@/types/database'
 
 interface TaskCardProps {
@@ -32,14 +33,10 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
   const { data: teams } = useTeams()
   const { data: members } = useMembers()
   const { data: references = [] } = useReferences(task.id)
+  const { data: assignees = [] } = useAssignees(task.id)
 
   const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
   } = useSortable({ id: task.id })
 
   const style = {
@@ -49,8 +46,11 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
   }
 
   const team = teams?.find((t) => t.id === task.team_id)
-  const owner = members?.find((m) => m.id === task.owner_id)
   const assignedBy = members?.find((m) => m.id === task.assigned_by_id)
+  const primaryAssignee = assignees.length > 0 ? members?.find((m) => m.id === assignees[0].member_id) : null
+  const extraCount = assignees.length > 1 ? assignees.length - 1 : 0
+  const linkCount = references.filter(r => r.type === 'link' || !r.type).length
+  const imageCount = references.filter(r => r.type === 'image').length
 
   return (
     <div
@@ -83,31 +83,32 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
         <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[task.priority]}`}>
           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
         </Badge>
-        {references.filter(r => r.type === 'link' || !r.type).length > 0 && (
+        {linkCount > 0 && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
-            <Link className="h-2.5 w-2.5" />
-            {references.filter(r => r.type === 'link' || !r.type).length}
+            <Link className="h-2.5 w-2.5" />{linkCount}
           </Badge>
         )}
-        {references.filter(r => r.type === 'image').length > 0 && (
+        {imageCount > 0 && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
-            <ImageIcon className="h-2.5 w-2.5" />
-            {references.filter(r => r.type === 'image').length}
+            <ImageIcon className="h-2.5 w-2.5" />{imageCount}
           </Badge>
         )}
-        {task.is_blocked && (
-          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-        )}
+        {task.is_blocked && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
       </div>
 
-      {(owner || assignedBy) && (
+      {(primaryAssignee || assignedBy) && (
         <div className="mt-2 space-y-0.5">
-          {owner && (
+          {primaryAssignee && (
             <div className="flex items-center gap-1.5">
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[9px] font-medium">
-                {owner.full_name.split(' ').map((n) => n[0]).join('')}
+                {primaryAssignee.full_name.split(' ').map((n) => n[0]).join('')}
               </div>
-              <span className="text-xs text-muted-foreground">{owner.full_name}</span>
+              <span className="text-xs text-muted-foreground">{primaryAssignee.full_name}</span>
+              {extraCount > 0 && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 gap-0.5">
+                  <Users className="h-2.5 w-2.5" />+{extraCount}
+                </Badge>
+              )}
             </div>
           )}
           {assignedBy && (

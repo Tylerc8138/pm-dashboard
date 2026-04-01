@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MemberRow } from './member-row'
 import { HealthIndicator, type MemberHealth } from './health-indicator'
+import { useAllAssignees } from '@/hooks/use-assignees'
 import type { Team, Member, Task } from '@/types/database'
 
 interface TeamSectionProps {
@@ -13,6 +14,8 @@ interface TeamSectionProps {
 }
 
 export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionProps) {
+  const { data: allAssignees = [] } = useAllAssignees()
+
   const totalTasks = tasks.length
   const doneTasks = tasks.filter((t) => t.status === 'done').length
   const blockedCount = tasks.filter((t) => t.is_blocked).length
@@ -25,6 +28,18 @@ export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionPro
     if (progress >= 0.5) return 'on_track'
     return 'heavy'
   }, [blockedCount, totalTasks, doneTasks])
+
+  // Get tasks assigned to each member via task_assignees
+  const getMemberTasks = (memberId: string) => {
+    const assignedTaskIds = allAssignees
+      .filter((a) => a.member_id === memberId)
+      .map((a) => a.task_id)
+    return tasks.filter((t) => assignedTaskIds.includes(t.id))
+  }
+
+  // Unassigned = tasks with no assignees at all
+  const assignedTaskIds = new Set(allAssignees.filter((a) => tasks.some((t) => t.id === a.task_id)).map((a) => a.task_id))
+  const unassignedTasks = tasks.filter((t) => !assignedTaskIds.has(t.id))
 
   return (
     <Card>
@@ -45,28 +60,17 @@ export function TeamSection({ team, members, tasks, onEditTask }: TeamSectionPro
               </Badge>
             )}
             {blockedCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
-                {blockedCount} blocked
-              </Badge>
+              <Badge variant="destructive" className="text-xs">{blockedCount} blocked</Badge>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
         {members.map((member) => (
-          <MemberRow
-            key={member.id}
-            member={member}
-            tasks={tasks.filter((t) => t.owner_id === member.id)}
-            onEditTask={onEditTask}
-          />
+          <MemberRow key={member.id} member={member} tasks={getMemberTasks(member.id)} onEditTask={onEditTask} />
         ))}
-        {tasks.filter((t) => !t.owner_id).length > 0 && (
-          <MemberRow
-            member={null}
-            tasks={tasks.filter((t) => !t.owner_id)}
-            onEditTask={onEditTask}
-          />
+        {unassignedTasks.length > 0 && (
+          <MemberRow member={null} tasks={unassignedTasks} onEditTask={onEditTask} />
         )}
       </CardContent>
     </Card>

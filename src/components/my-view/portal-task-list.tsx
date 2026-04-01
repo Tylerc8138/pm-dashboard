@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
+import { useAllAssignees } from '@/hooks/use-assignees'
 import { AlertCircle, Clock } from 'lucide-react'
 import type { Task, TaskStatus, TaskPriority } from '@/types/database'
 
@@ -34,6 +35,7 @@ function getDaysInStatus(task: Task): number {
 export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskListProps) {
   const { data: members } = useMembers()
   const { data: sprints } = useSprints()
+  const { data: allAssignees = [] } = useAllAssignees()
 
   const grouped = useMemo(() => {
     return statusConfig.map((config) => ({
@@ -60,7 +62,8 @@ export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskLi
               <p className="py-3 text-center text-xs text-muted-foreground italic">No items</p>
             )}
             {group.tasks.map((task) => {
-              const owner = members?.find((m) => m.id === task.owner_id)
+              const taskAssignees = allAssignees.filter((a) => a.task_id === task.id)
+              const assigneeNames = taskAssignees.map((a) => members?.find((m) => m.id === a.member_id)?.full_name).filter(Boolean)
               const assignedBy = members?.find((m) => m.id === task.assigned_by_id)
               const sprint = sprints?.find((s) => s.id === task.sprint_id)
               const days = getDaysInStatus(task)
@@ -76,8 +79,8 @@ export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskLi
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{task.title}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {owner && (
-                        <span className="text-xs text-muted-foreground">{owner.full_name}</span>
+                      {assigneeNames.length > 0 && (
+                        <span className="text-xs text-muted-foreground">{assigneeNames.join(', ')}</span>
                       )}
                       {assignedBy && (
                         <span className="text-xs text-muted-foreground">

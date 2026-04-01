@@ -29,7 +29,7 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
   const { sprintId } = useFilters()
   const { data: tasks = [] } = useTasks({ sprintId })
   const { data: teams = [] } = useTeams()
-  const { data: members = [] } = useMembers()
+  const { data: _members = [] } = useMembers()
   const { data: sprints = [] } = useSprints()
 
   const currentSprint = sprints.find((s) => s.id === sprintId) ?? sprints[0]
@@ -64,11 +64,10 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
       .map((t) => ({
         task: t,
         team: teams.find((tm) => tm.id === t.team_id),
-        owner: members.find((m) => m.id === t.owner_id),
         days: getDaysAgo(t.updated_at),
       }))
       .sort((a, b) => b.days - a.days)
-  }, [tasks, teams, members])
+  }, [tasks, teams])
 
   return (
     <PortalLayout
@@ -153,24 +152,22 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
             <p className="py-4 text-center text-sm text-muted-foreground">No blockers — all clear.</p>
           ) : (
             <div className="space-y-1 overflow-x-auto">
-              <div className="grid grid-cols-[1fr_100px_100px_1fr_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[1fr_100px_1fr_60px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <span>Task</span>
                 <span>Team</span>
-                <span>Assigned To</span>
                 <span>Reason</span>
                 <span className="text-right">Age</span>
               </div>
-              {blockers.map(({ task, team, owner, days }) => (
+              {blockers.map(({ task, team, days }) => (
                 <button
                   key={task.id}
                   onClick={() => onEditTask(task)}
-                  className={`grid w-full grid-cols-[1fr_100px_100px_1fr_60px] gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors ${
+                  className={`grid w-full grid-cols-[1fr_100px_1fr_60px] gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors ${
                     days >= 2 ? 'bg-destructive/5' : ''
                   }`}
                 >
                   <span className="truncate font-medium">{task.title}</span>
                   <span className="text-muted-foreground">{team?.name ?? '—'}</span>
-                  <span className="text-muted-foreground">{owner?.full_name ?? 'Unassigned'}</span>
                   <span className="text-muted-foreground truncate">{task.blocked_reason ?? '—'}</span>
                   <span className={`text-right font-medium ${days >= 2 ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {days}d

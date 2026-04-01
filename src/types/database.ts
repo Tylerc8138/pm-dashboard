@@ -1,6 +1,7 @@
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'done'
 export type TaskPriority = 'high' | 'medium' | 'low'
 export type MemberRole = 'lead' | 'member'
+export type ReferenceType = 'link' | 'image'
 
 export interface Team {
   id: string
@@ -36,7 +37,6 @@ export interface Task {
   priority: TaskPriority
   sprint_id: string
   team_id: string
-  owner_id: string | null
   assigned_by_id: string | null
   position: number
   is_blocked: boolean
@@ -52,7 +52,6 @@ export interface TaskInsert {
   priority?: TaskPriority
   sprint_id: string
   team_id: string
-  owner_id?: string | null
   assigned_by_id?: string | null
   position?: number
   is_blocked?: boolean
@@ -67,14 +66,25 @@ export interface TaskUpdate {
   priority?: TaskPriority
   sprint_id?: string
   team_id?: string
-  owner_id?: string | null
   assigned_by_id?: string | null
   position?: number
   is_blocked?: boolean
   blocked_reason?: string | null
 }
 
-export type ReferenceType = 'link' | 'image'
+export interface TaskAssignee {
+  id: string
+  task_id: string
+  member_id: string
+  description: string
+  created_at: string
+}
+
+export interface TaskAssigneeInsert {
+  task_id: string
+  member_id: string
+  description?: string
+}
 
 export interface TaskReference {
   id: string
@@ -101,6 +111,7 @@ export interface Database {
       members: { Row: Member; Insert: Omit<Member, 'id' | 'created_at'>; Update: Partial<Omit<Member, 'id'>> }
       sprints: { Row: Sprint; Insert: Omit<Sprint, 'id' | 'created_at'>; Update: Partial<Omit<Sprint, 'id'>> }
       tasks: { Row: Task; Insert: TaskInsert; Update: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at'>> }
+      task_assignees: { Row: TaskAssignee; Insert: TaskAssigneeInsert; Update: Partial<Omit<TaskAssignee, 'id' | 'created_at'>> }
       task_references: { Row: TaskReference; Insert: TaskReferenceInsert; Update: Partial<Omit<TaskReference, 'id' | 'created_at'>> }
     }
     Views: Record<string, never>
