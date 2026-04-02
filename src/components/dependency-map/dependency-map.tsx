@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useTasks } from '@/hooks/use-tasks'
@@ -16,7 +16,6 @@ const TEAM_COLORS: Record<string, { bg: string; border: string; text: string }> 
   Legal: { bg: '#fee2e2', border: '#ef4444', text: '#b91c1c' },
   'Search Strategy': { bg: '#ccfbf1', border: '#14b8a6', text: '#0f766e' },
 }
-
 const DEFAULT_COLOR = { bg: '#f3f4f6', border: '#9ca3af', text: '#4b5563' }
 
 interface LayoutNode {
@@ -24,8 +23,26 @@ interface LayoutNode {
   teamName: string
   x: number
   y: number
-  column: number
-  row: number
+}
+
+interface LayoutEdge {
+  id: string
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  resolved: boolean
+  blockingTitle: string
+  blockingTeam: string
+  blockingStatus: string
+  waitingTitle: string
+  waitingTeam: string
+}
+
+interface TooltipData {
+  edge: LayoutEdge
+  mouseX: number
+  mouseY: number
 }
 
 interface MapProps {
@@ -37,15 +54,22 @@ export function DependencyMap({ onEditTask }: MapProps) {
   const { data: tasks = [] } = useTasks({ sprintId })
   const { data: teams = [] } = useTeams()
   const { data: allDeps = [] } = useAllDependencies()
+  const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null)
-  const [hoveredEdge, setHoveredEdge] = useState<typeof edges[number] | null>(null)
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const NODE_W = 200
+  const NODE_H = 60
+  const COL_GAP = 120
+  const ROW_GAP = 28
+  const PAD_X = 50
+  const PAD_Y = 50
 
   const { nodes, edges, width, height, stats } = useMemo(() => {
-    // Filter deps to only include tasks in current view
     const taskIds = new Set(tasks.map(t => t.id))
     const relevantDeps = allDeps.filter(d => taskIds.has(d.blocking_task_id) && taskIds.has(d.waiting_task_id))
 
-    // Build adjacency: blocking -> [waiting tasks]
     const blocksMap = new Map<string, string[]>()
     const waitingOnMap = new Map<string, string[]>()
     for (const dep of relevantDeps) {
@@ -55,23 +79,20 @@ export function DependencyMap({ onEditTask }: MapProps) {
       waitingOnMap.get(dep.waiting_task_id)!.push(dep.blocking_task_id)
     }
 
-    // Only show tasks that have dependencies
     const connectedTaskIds = new Set<string>()
     for (const dep of relevantDeps) {
       connectedTaskIds.add(dep.blocking_task_id)
       connectedTaskIds.add(dep.waiting_task_id)
     }
-
     const connectedTasks = tasks.filter(t => connectedTaskIds.has(t.id))
 
     if (connectedTasks.length === 0) {
-      return { nodes: [], edges: [], width: 0, height: 0, stats: { total: 0, resolved: 0, pending: 0, bottlenecks: 0 } }
+      return { nodes: [] as LayoutNode[], edges: [] as LayoutEdge[], width: 0, height: 0, stats: { total: 0, resolved: 0, pending: 0, bottlenecks: 0 } }
     }
 
-    // Topological sort into columns (depth from roots)
+    // Topological sort into columns
     const depth = new Map<string, number>()
     const visited = new Set<string>()
-
     function getDepth(id: string): number {
       if (depth.has(id)) return depth.get(id)!
       if (visited.has(id)) return 0
@@ -81,10 +102,8 @@ export function DependencyMap({ onEditTask }: MapProps) {
       depth.set(id, d)
       return d
     }
-
     for (const t of connectedTasks) getDepth(t.id)
 
-    // Group by column
     const columns = new Map<number, Task[]>()
     for (const t of connectedTasks) {
       const col = depth.get(t.id) ?? 0
@@ -92,44 +111,31 @@ export function DependencyMap({ onEditTask }: MapProps) {
       columns.get(col)!.push(t)
     }
 
-    // Layout
-    const nodeW = 220
-    const nodeH = 70
-    const colGap = 100
-    const rowGap = 24
-    const padX = 40
-    const padY = 40
-
     const layoutNodes: LayoutNode[] = []
-    let maxX = 0
-    let maxY = 0
+    let maxX = 0, maxY = 0
 
-    const sortedCols = [...columns.entries()].sort((a, b) => a[0] - b[0])
-    for (const [col, colTasks] of sortedCols) {
+    for (const [col, colTasks] of [...columns.entries()].sort((a, b) => a[0] - b[0])) {
       colTasks.forEach((task, row) => {
         const team = teams.find(t => t.id === task.team_id)
-        const x = padX + col * (nodeW + colGap)
-        const y = padY + row * (nodeH + rowGap)
-        layoutNodes.push({ task, teamName: team?.name ?? '', x, y, column: col, row })
-        maxX = Math.max(maxX, x + nodeW)
-        maxY = Math.max(maxY, y + nodeH)
+        const x = PAD_X + col * (NODE_W + COL_GAP)
+        const y = PAD_Y + row * (NODE_H + ROW_GAP)
+        layoutNodes.push({ task, teamName: team?.name ?? '', x, y })
+        maxX = Math.max(maxX, x + NODE_W)
+        maxY = Math.max(maxY, y + NODE_H)
       })
     }
 
-    // Build edges
     const nodeMap = new Map(layoutNodes.map(n => [n.task.id, n]))
-    const layoutEdges = relevantDeps.map(dep => {
+    const layoutEdges: LayoutEdge[] = relevantDeps.map(dep => {
       const from = nodeMap.get(dep.blocking_task_id)
       const to = nodeMap.get(dep.waiting_task_id)
       if (!from || !to) return null
       return {
         id: dep.id,
-        fromX: from.x + nodeW,
-        fromY: from.y + nodeH / 2,
+        fromX: from.x + NODE_W,
+        fromY: from.y + NODE_H / 2,
         toX: to.x,
-        toY: to.y + nodeH / 2,
-        midX: (from.x + nodeW + to.x) / 2,
-        midY: (from.y + nodeH / 2 + to.y + nodeH / 2) / 2,
+        toY: to.y + NODE_H / 2,
         resolved: from.task.status === 'done',
         blockingTitle: from.task.title,
         blockingTeam: from.teamName,
@@ -137,28 +143,39 @@ export function DependencyMap({ onEditTask }: MapProps) {
         waitingTitle: to.task.title,
         waitingTeam: to.teamName,
       }
-    }).filter(Boolean) as { id: string; fromX: number; fromY: number; toX: number; toY: number; midX: number; midY: number; resolved: boolean; blockingTitle: string; blockingTeam: string; blockingStatus: string; waitingTitle: string; waitingTeam: string }[]
+    }).filter(Boolean) as LayoutEdge[]
 
-    // Stats
     const bottlenecks = connectedTasks.filter(t => (blocksMap.get(t.id)?.length ?? 0) >= 2).length
-    const resolved = relevantDeps.filter(d => {
-      const bt = tasks.find(t => t.id === d.blocking_task_id)
-      return bt?.status === 'done'
-    }).length
+    const resolved = relevantDeps.filter(d => tasks.find(t => t.id === d.blocking_task_id)?.status === 'done').length
 
     return {
       nodes: layoutNodes,
       edges: layoutEdges,
-      width: maxX + padX,
-      height: maxY + padY + 20,
-      stats: {
-        total: relevantDeps.length,
-        resolved,
-        pending: relevantDeps.length - resolved,
-        bottlenecks,
-      },
+      width: maxX + PAD_X,
+      height: maxY + PAD_Y + 20,
+      stats: { total: relevantDeps.length, resolved, pending: relevantDeps.length - resolved, bottlenecks },
     }
-  }, [tasks, teams, allDeps])
+  }, [tasks, teams, allDeps, NODE_W, NODE_H, COL_GAP, ROW_GAP, PAD_X, PAD_Y])
+
+  const handleEdgeMouseEnter = useCallback((edge: LayoutEdge, e: React.MouseEvent) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    hoverTimerRef.current = setTimeout(() => {
+      setTooltip({ edge, mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top })
+    }, 200)
+  }, [])
+
+  const handleEdgeMouseMove = useCallback((edge: LayoutEdge, e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect || !tooltip) return
+    setTooltip({ edge, mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top })
+  }, [tooltip])
+
+  const handleEdgeMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    setTooltip(null)
+  }, [])
 
   if (nodes.length === 0) {
     return (
@@ -167,9 +184,7 @@ export function DependencyMap({ onEditTask }: MapProps) {
           <CardContent className="py-12 text-center">
             <GitBranch className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">No dependencies mapped yet.</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Add dependencies between tasks from the task edit dialog to see them visualized here.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Add dependencies between tasks from the task edit dialog to see them visualized here.</p>
           </CardContent>
         </Card>
       </div>
@@ -180,114 +195,59 @@ export function DependencyMap({ onEditTask }: MapProps) {
     <div className="p-6 space-y-4">
       {/* Stats */}
       <div className="flex items-center gap-4">
-        <Badge variant="secondary" className="gap-1">
-          <GitBranch className="h-3 w-3" />
-          {stats.total} dependencies
-        </Badge>
-        <Badge variant="secondary" className="gap-1 bg-green-100 text-green-700">
-          <CheckCircle2 className="h-3 w-3" />
-          {stats.resolved} resolved
-        </Badge>
-        <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-700">
-          <AlertTriangle className="h-3 w-3" />
-          {stats.pending} pending
-        </Badge>
-        {stats.bottlenecks > 0 && (
-          <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700">
-            {stats.bottlenecks} bottleneck{stats.bottlenecks > 1 ? 's' : ''}
-          </Badge>
-        )}
+        <Badge variant="secondary" className="gap-1"><GitBranch className="h-3 w-3" />{stats.total} dependencies</Badge>
+        <Badge variant="secondary" className="gap-1 bg-green-100 text-green-700"><CheckCircle2 className="h-3 w-3" />{stats.resolved} resolved</Badge>
+        <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-700"><AlertTriangle className="h-3 w-3" />{stats.pending} pending</Badge>
+        {stats.bottlenecks > 0 && <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700">{stats.bottlenecks} bottleneck{stats.bottlenecks > 1 ? 's' : ''}</Badge>}
       </div>
 
       {/* Map */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <GitBranch className="h-4 w-4" />
-            Dependency Map
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Tasks flow left to right. Arrows show "blocks" relationships.</p>
+          <CardTitle className="text-sm flex items-center gap-2"><GitBranch className="h-4 w-4" />Dependency Map</CardTitle>
+          <p className="text-xs text-muted-foreground">Tasks flow left to right. Hover arrows for details. Click nodes to edit.</p>
         </CardHeader>
-        <CardContent className="overflow-auto">
+        <CardContent className="overflow-auto relative" ref={containerRef}>
           <svg width={width} height={height} className="min-w-full">
-            {/* Edges */}
+            {/* Edges (render first, behind nodes) */}
             {edges.map((edge) => {
               const midX = (edge.fromX + edge.toX) / 2
-              const isHoveredEdge = hoveredEdge?.id === edge.id
+              const isHovered = tooltip?.edge.id === edge.id
               return (
                 <g key={edge.id}>
-                  {/* Invisible wide path for easier hover */}
+                  {/* Invisible wide hit area */}
                   <path
                     d={`M ${edge.fromX} ${edge.fromY} C ${midX} ${edge.fromY}, ${midX} ${edge.toY}, ${edge.toX} ${edge.toY}`}
                     fill="none"
                     stroke="transparent"
-                    strokeWidth={16}
+                    strokeWidth={20}
                     className="cursor-pointer"
-                    onMouseEnter={() => setHoveredEdge(edge)}
-                    onMouseLeave={() => setHoveredEdge(null)}
+                    onMouseEnter={(e) => handleEdgeMouseEnter(edge, e)}
+                    onMouseMove={(e) => handleEdgeMouseMove(edge, e)}
+                    onMouseLeave={handleEdgeMouseLeave}
                   />
-                  {/* Visible path */}
+                  {/* Visible arrow */}
                   <path
                     d={`M ${edge.fromX} ${edge.fromY} C ${midX} ${edge.fromY}, ${midX} ${edge.toY}, ${edge.toX} ${edge.toY}`}
                     fill="none"
-                    stroke={edge.resolved ? '#86efac' : '#fbbf24'}
-                    strokeWidth={isHoveredEdge ? 3.5 : 2}
-                    strokeDasharray={edge.resolved ? '0' : '6 3'}
-                    opacity={isHoveredEdge ? 1 : 0.7}
-                    className="pointer-events-none"
+                    stroke={edge.resolved ? '#4ade80' : '#fbbf24'}
+                    strokeWidth={isHovered ? 3 : 2}
+                    strokeDasharray={edge.resolved ? '0' : '8 4'}
+                    opacity={isHovered ? 1 : 0.6}
+                    className="pointer-events-none transition-all duration-150"
                   />
                   {/* Arrow head */}
                   <polygon
-                    points={`${edge.toX},${edge.toY} ${edge.toX - 8},${edge.toY - 4} ${edge.toX - 8},${edge.toY + 4}`}
-                    fill={edge.resolved ? '#86efac' : '#fbbf24'}
-                    opacity={isHoveredEdge ? 1 : 0.7}
+                    points={`${edge.toX},${edge.toY} ${edge.toX - 10},${edge.toY - 5} ${edge.toX - 10},${edge.toY + 5}`}
+                    fill={edge.resolved ? '#4ade80' : '#fbbf24'}
+                    opacity={isHovered ? 1 : 0.6}
                     className="pointer-events-none"
                   />
                 </g>
               )
             })}
 
-            {/* Edge hover tooltip */}
-            {hoveredEdge && (
-              <g>
-                <rect
-                  x={hoveredEdge.midX - 140}
-                  y={hoveredEdge.midY - 48}
-                  width={280}
-                  height={96}
-                  rx={8}
-                  fill="white"
-                  stroke={hoveredEdge.resolved ? '#86efac' : '#fbbf24'}
-                  strokeWidth={1.5}
-                  filter="drop-shadow(0 4px 6px rgba(0,0,0,0.1))"
-                  className="pointer-events-none"
-                />
-                {/* "blocks" label */}
-                <text x={hoveredEdge.midX} y={hoveredEdge.midY - 30} textAnchor="middle" fontSize={10} fontWeight={600} fill={hoveredEdge.resolved ? '#15803d' : '#b45309'} className="pointer-events-none">
-                  {hoveredEdge.resolved ? 'RESOLVED' : 'PENDING DEPENDENCY'}
-                </text>
-                {/* Blocking task */}
-                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY - 10} fontSize={11} fontWeight={600} fill="#1f2937" className="pointer-events-none">
-                  {hoveredEdge.blockingTitle.length > 30 ? hoveredEdge.blockingTitle.slice(0, 30) + '...' : hoveredEdge.blockingTitle}
-                </text>
-                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 4} fontSize={10} fill="#6b7280" className="pointer-events-none">
-                  {hoveredEdge.blockingTeam} · {hoveredEdge.blockingStatus === 'done' ? 'Done' : 'In progress'}
-                </text>
-                {/* Arrow */}
-                <text x={hoveredEdge.midX} y={hoveredEdge.midY + 22} textAnchor="middle" fontSize={11} fill="#9ca3af" className="pointer-events-none">
-                  blocks ↓
-                </text>
-                {/* Waiting task */}
-                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 38} fontSize={11} fontWeight={600} fill="#1f2937" className="pointer-events-none">
-                  {hoveredEdge.waitingTitle.length > 30 ? hoveredEdge.waitingTitle.slice(0, 30) + '...' : hoveredEdge.waitingTitle}
-                </text>
-                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 52} fontSize={10} fill="#6b7280" className="pointer-events-none">
-                  {hoveredEdge.waitingTeam}
-                </text>
-              </g>
-            )}
-
-            {/* Nodes */}
+            {/* Nodes (render second, on top of edges) */}
             {nodes.map((node) => {
               const color = TEAM_COLORS[node.teamName] ?? DEFAULT_COLOR
               const isDone = node.task.status === 'done'
@@ -301,24 +261,34 @@ export function DependencyMap({ onEditTask }: MapProps) {
                   onMouseLeave={() => setHoveredTaskId(null)}
                   className="cursor-pointer"
                 >
+                  {/* Shadow */}
                   <rect
-                    x={node.x}
-                    y={node.y}
-                    width={220}
-                    height={70}
-                    rx={8}
-                    fill={isDone ? '#f0fdf4' : color.bg}
-                    stroke={isHovered ? color.border : isDone ? '#86efac' : color.border}
-                    strokeWidth={isHovered ? 2.5 : 1.5}
-                    opacity={isDone ? 0.7 : 1}
+                    x={node.x + 2}
+                    y={node.y + 2}
+                    width={NODE_W}
+                    height={NODE_H}
+                    rx={10}
+                    fill="rgba(0,0,0,0.06)"
+                    className="pointer-events-none"
                   />
-                  {/* Team color bar */}
+                  {/* Card background */}
                   <rect
                     x={node.x}
                     y={node.y}
-                    width={5}
-                    height={70}
-                    rx={3}
+                    width={NODE_W}
+                    height={NODE_H}
+                    rx={10}
+                    fill={isDone ? '#f8fdf8' : 'white'}
+                    stroke={isHovered ? color.border : isDone ? '#bbf7d0' : '#e5e7eb'}
+                    strokeWidth={isHovered ? 2 : 1}
+                  />
+                  {/* Team color left bar */}
+                  <rect
+                    x={node.x}
+                    y={node.y}
+                    width={4}
+                    height={NODE_H}
+                    rx={2}
                     fill={color.border}
                   />
                   {/* Title */}
@@ -327,12 +297,12 @@ export function DependencyMap({ onEditTask }: MapProps) {
                     y={node.y + 22}
                     fontSize={12}
                     fontWeight={600}
-                    fill={isDone ? '#6b7280' : '#1f2937'}
+                    fill={isDone ? '#9ca3af' : '#1f2937'}
                     textDecoration={isDone ? 'line-through' : 'none'}
                   >
-                    {node.task.title.length > 28 ? node.task.title.slice(0, 28) + '...' : node.task.title}
+                    {node.task.title.length > 24 ? node.task.title.slice(0, 24) + '...' : node.task.title}
                   </text>
-                  {/* Team name */}
+                  {/* Team + status */}
                   <text
                     x={node.x + 14}
                     y={node.y + 40}
@@ -341,26 +311,63 @@ export function DependencyMap({ onEditTask }: MapProps) {
                   >
                     {node.teamName}
                   </text>
-                  {/* Status */}
                   <text
                     x={node.x + 14}
-                    y={node.y + 56}
-                    fontSize={10}
+                    y={node.y + 52}
+                    fontSize={9}
                     fill="#9ca3af"
                   >
                     {node.task.priority.charAt(0).toUpperCase() + node.task.priority.slice(1)} · {node.task.status === 'in_progress' ? 'In Progress' : node.task.status.charAt(0).toUpperCase() + node.task.status.slice(1).replace('_', ' ')}
                   </text>
-                  {/* Done checkmark */}
+                  {/* Done indicator */}
                   {isDone && (
-                    <circle cx={node.x + 205} cy={node.y + 15} r={8} fill="#22c55e" opacity={0.8} />
-                  )}
-                  {isDone && (
-                    <text x={node.x + 201} y={node.y + 19} fontSize={11} fill="white" fontWeight={700}>✓</text>
+                    <>
+                      <circle cx={node.x + NODE_W - 16} cy={node.y + 16} r={8} fill="#22c55e" />
+                      <text x={node.x + NODE_W - 20} y={node.y + 20} fontSize={10} fill="white" fontWeight={700}>✓</text>
+                    </>
                   )}
                 </g>
               )
             })}
           </svg>
+
+          {/* HTML Tooltip — positioned absolutely over the SVG */}
+          {tooltip && (
+            <div
+              className="absolute pointer-events-none z-50 animate-in fade-in-0 duration-150"
+              style={{
+                left: tooltip.mouseX + 16,
+                top: tooltip.mouseY - 40,
+              }}
+            >
+              <div className={`rounded-lg border shadow-lg px-4 py-3 text-sm bg-white max-w-[280px] ${
+                tooltip.edge.resolved ? 'border-green-300' : 'border-amber-300'
+              }`}>
+                <div className={`text-[10px] font-semibold uppercase tracking-wide mb-2 ${
+                  tooltip.edge.resolved ? 'text-green-600' : 'text-amber-600'
+                }`}>
+                  {tooltip.edge.resolved ? 'Resolved' : 'Pending Dependency'}
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <p className="font-semibold text-xs truncate">{tooltip.edge.blockingTitle}</p>
+                    <p className="text-[10px] text-muted-foreground">{tooltip.edge.blockingTeam} · {tooltip.edge.blockingStatus === 'done' ? 'Done' : 'Not done'}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span>↓</span>
+                    <span>blocks</span>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-xs truncate">{tooltip.edge.waitingTitle}</p>
+                    <p className="text-[10px] text-muted-foreground">{tooltip.edge.waitingTeam}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
