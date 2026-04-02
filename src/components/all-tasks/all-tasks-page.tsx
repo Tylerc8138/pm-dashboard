@@ -6,7 +6,8 @@ import { useTeams } from '@/hooks/use-teams'
 import { useFilters } from '@/contexts/filter-context'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TeamView } from '@/components/team-view/team-view'
-import { LayoutGrid, Users } from 'lucide-react'
+import { DependencyMap } from '@/components/dependency-map/dependency-map'
+import { LayoutGrid, Users, GitBranch } from 'lucide-react'
 import type { Task, TaskStatus } from '@/types/database'
 
 interface AllTasksPageProps {
@@ -15,7 +16,7 @@ interface AllTasksPageProps {
 }
 
 export function AllTasksPage({ onEditTask, onNewTask }: AllTasksPageProps) {
-  const [subView, setSubView] = useState<'kanban' | 'teams'>('kanban')
+  const [subView, setSubView] = useState<'kanban' | 'teams' | 'dependencies'>('kanban')
   const { data: sprints } = useSprints()
   const { data: teams } = useTeams()
   const { sprintId, setSprintId, teamId, setTeamId } = useFilters()
@@ -54,6 +55,15 @@ export function AllTasksPage({ onEditTask, onNewTask }: AllTasksPageProps) {
               <Users className="h-3.5 w-3.5" />
               By Team
             </Button>
+            <Button
+              variant={subView === 'dependencies' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setSubView('dependencies')}
+              className="gap-1.5"
+            >
+              <GitBranch className="h-3.5 w-3.5" />
+              Dependencies
+            </Button>
           </div>
         </div>
 
@@ -90,6 +100,8 @@ export function AllTasksPage({ onEditTask, onNewTask }: AllTasksPageProps) {
       <div className="flex-1 overflow-auto">
         {subView === 'kanban' ? (
           <KanbanBoard onEditTask={onEditTask} onNewTask={onNewTask} />
+        ) : subView === 'dependencies' ? (
+          <DependencyMap onEditTask={onEditTask} />
         ) : (
           <TeamView onEditTask={onEditTask} />
         )}

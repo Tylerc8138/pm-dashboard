@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { useSprints } from './use-sprints'
 import { useTasks } from './use-tasks'
+import { useTeams } from './use-teams'
 import { parseDate } from '@/lib/date-utils'
-import type { Sprint, Task } from '@/types/database'
+import type { Sprint, Task, Team } from '@/types/database'
 
 export interface SprintWithTasks extends Sprint {
   tasks: Task[]
@@ -11,9 +12,23 @@ export interface SprintWithTasks extends Sprint {
   hasBlocked: boolean
 }
 
-export function useCalendarData() {
+export function useCalendarData(teamId?: string | null) {
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints()
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks()
+  const { data: allTasks = [], isLoading: tasksLoading } = useTasks()
+  const { data: teams = [], isLoading: teamsLoading } = useTeams()
+
+  // Filter tasks by team if selected
+  const tasks = useMemo(() =>
+    teamId ? allTasks.filter(t => t.team_id === teamId) : allTasks,
+    [allTasks, teamId]
+  )
+
+  // Map team_id → Team for color lookups
+  const teamMap = useMemo(() => {
+    const map = new Map<string, Team>()
+    for (const t of teams) map.set(t.id, t)
+    return map
+  }, [teams])
 
   const sprintsWithTasks = useMemo(() =>
     sprints
@@ -53,7 +68,6 @@ export function useCalendarData() {
     const starts = dated.map(s => parseDate(s.start_date).getTime())
     const ends = dated.map(s => parseDate(s.end_date).getTime())
 
-    // Add 2 weeks padding on each side
     const padding = 14 * 86400000
     return {
       start: new Date(Math.min(...starts) - padding),
@@ -65,6 +79,8 @@ export function useCalendarData() {
     sprintsWithTasks,
     tasksByDate,
     dateRange,
-    isLoading: sprintsLoading || tasksLoading,
+    teams,
+    teamMap,
+    isLoading: sprintsLoading || tasksLoading || teamsLoading,
   }
 }
