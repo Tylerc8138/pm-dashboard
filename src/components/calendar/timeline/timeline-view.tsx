@@ -1,14 +1,13 @@
 import React, { useRef, useCallback, useEffect } from 'react'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { daysBetween, dateToX } from '@/lib/date-utils'
-import { getTeamColor } from '@/lib/utils'
 import { TimelineHeader } from './timeline-header'
 import { TimelineRow } from './timeline-row'
 
-const HEADER_HEIGHT = 52
-const ROW_HEIGHT = 72
-const DAY_WIDTH = 5
-const LABEL_WIDTH = 220
+const HEADER_HEIGHT = 56
+const ROW_HEIGHT = 80
+const DAY_WIDTH = 10
+const LABEL_WIDTH = 200
 
 interface TimelineViewProps {
   teamId?: string | null
@@ -35,7 +34,7 @@ export function TimelineView({ teamId }: TimelineViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#12122a] text-[#8888aa]">
+      <div className="flex h-full items-center justify-center text-muted-foreground">
         Loading timeline...
       </div>
     )
@@ -43,7 +42,7 @@ export function TimelineView({ teamId }: TimelineViewProps) {
 
   if (!dateRange || sprintsWithTasks.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#12122a] text-[#8888aa]">
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
         <p className="text-sm">No sprints with dates to display.</p>
         <p className="text-xs opacity-60">Set start and end dates on your sprints to see them here.</p>
       </div>
@@ -59,60 +58,38 @@ export function TimelineView({ teamId }: TimelineViewProps) {
   const todayVisible = todayX >= 0 && todayX <= totalWidth
 
   return (
-    <div className="flex h-full bg-[#12122a]">
+    <div className="flex h-full bg-background">
       {/* Fixed sprint label column */}
       <div
         ref={labelRef}
-        className="shrink-0 overflow-hidden border-r border-[#2a2a4a] bg-[#16163a]"
+        className="shrink-0 overflow-hidden border-r"
         style={{ width: LABEL_WIDTH }}
       >
         {/* Header spacer */}
         <div
-          className="flex items-end px-4 pb-2 border-b border-[#2a2a4a]"
+          className="flex items-end px-4 pb-2 border-b bg-muted/30"
           style={{ height: HEADER_HEIGHT }}
         >
-          <span className="text-[11px] font-medium text-[#6666888] tracking-wider uppercase">Sprints</span>
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-wider uppercase">Sprints</span>
         </div>
 
         {/* Sprint labels */}
-        {sprintsWithTasks.map(sprint => {
-          // Get dominant team for color dot
-          const teamCounts = new Map<string, number>()
-          for (const task of sprint.tasks) {
-            teamCounts.set(task.team_id, (teamCounts.get(task.team_id) ?? 0) + 1)
-          }
-          let dominantTeamName = ''
-          let maxCount = 0
-          for (const [tid, count] of teamCounts) {
-            if (count > maxCount) {
-              maxCount = count
-              dominantTeamName = teamMap.get(tid)?.name ?? ''
-            }
-          }
-          const color = getTeamColor(dominantTeamName)
-
-          return (
-            <div
-              key={sprint.id}
-              className="flex items-center gap-3 px-4 border-b border-[#2a2a4a]"
-              style={{ height: ROW_HEIGHT }}
-            >
-              {/* Team color dot */}
-              <div
-                className="h-2.5 w-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: color.bar }}
-              />
-              <div className="flex flex-col min-w-0 gap-0.5">
-                <span className="text-[13px] font-medium text-[#e0e0f0] truncate">
-                  {sprint.name}
-                </span>
-                <span className="text-[11px] text-[#6666880]">
-                  Sprint {sprint.number} &middot; {sprint.doneCount}/{sprint.totalCount} done
-                </span>
-              </div>
+        {sprintsWithTasks.map(sprint => (
+          <div
+            key={sprint.id}
+            className="flex items-center px-4 border-b"
+            style={{ height: ROW_HEIGHT }}
+          >
+            <div className="flex flex-col min-w-0 gap-0.5">
+              <span className="text-sm font-semibold text-foreground truncate">
+                {sprint.name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Sprint {sprint.number}
+              </span>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
 
       {/* Scrollable SVG area */}
@@ -122,9 +99,6 @@ export function TimelineView({ teamId }: TimelineViewProps) {
         onScroll={handleScroll}
       >
         <svg width={totalWidth} height={totalHeight} className="block">
-          {/* Background */}
-          <rect x={0} y={0} width={totalWidth} height={totalHeight} fill="#12122a" />
-
           <TimelineHeader
             startDate={dateRange.start}
             endDate={dateRange.end}
@@ -133,20 +107,28 @@ export function TimelineView({ teamId }: TimelineViewProps) {
             headerHeight={HEADER_HEIGHT}
           />
 
-          {/* Row grid lines */}
+          {/* Row backgrounds */}
           {sprintsWithTasks.map((_, i) => (
-            <line
-              key={i}
-              x1={0}
-              y1={HEADER_HEIGHT + (i + 1) * ROW_HEIGHT}
-              x2={totalWidth}
-              y2={HEADER_HEIGHT + (i + 1) * ROW_HEIGHT}
-              stroke="#1e1e3a"
-              strokeWidth={1}
-            />
+            <React.Fragment key={i}>
+              <rect
+                x={0}
+                y={HEADER_HEIGHT + i * ROW_HEIGHT}
+                width={totalWidth}
+                height={ROW_HEIGHT}
+                fill={i % 2 === 0 ? '#ffffff' : '#f9fafb'}
+              />
+              <line
+                x1={0}
+                y1={HEADER_HEIGHT + (i + 1) * ROW_HEIGHT}
+                x2={totalWidth}
+                y2={HEADER_HEIGHT + (i + 1) * ROW_HEIGHT}
+                stroke="#f0f0f0"
+                strokeWidth={1}
+              />
+            </React.Fragment>
           ))}
 
-          {/* Vertical week gridlines extending through the chart */}
+          {/* Vertical week gridlines */}
           {(() => {
             const lines: React.ReactElement[] = []
             const current = new Date(dateRange.start)
@@ -156,7 +138,7 @@ export function TimelineView({ teamId }: TimelineViewProps) {
             while (current <= dateRange.end) {
               const x = dateToX(current, dateRange.start, DAY_WIDTH)
               lines.push(
-                <line key={`vl${idx++}`} x1={x} y1={HEADER_HEIGHT} x2={x} y2={totalHeight} stroke="#1a1a38" strokeWidth={0.5} />
+                <line key={`vl${idx++}`} x1={x} y1={HEADER_HEIGHT} x2={x} y2={totalHeight} stroke="#f3f4f6" strokeWidth={0.5} />
               )
               current.setDate(current.getDate() + 7)
             }
@@ -181,13 +163,13 @@ export function TimelineView({ teamId }: TimelineViewProps) {
             <g>
               <line
                 x1={todayX}
-                y1={HEADER_HEIGHT}
+                y1={0}
                 x2={todayX}
                 y2={totalHeight}
                 stroke="#ef4444"
                 strokeWidth={1.5}
+                strokeDasharray="6 4"
               />
-              {/* Today dot at top */}
               <circle cx={todayX} cy={HEADER_HEIGHT} r={4} fill="#ef4444" />
             </g>
           )}

@@ -15,10 +15,10 @@ interface TimelineRowProps {
 export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight, teamMap }: TimelineRowProps) {
   const barX = dateToX(parseDate(sprint.start_date ?? ''), startDate, dayWidth)
   const barEnd = dateToX(parseDate(sprint.end_date ?? ''), startDate, dayWidth)
-  const barWidth = Math.max(barEnd - barX, 12)
+  const barWidth = Math.max(barEnd - barX, 20)
   const progress = sprint.totalCount > 0 ? sprint.doneCount / sprint.totalCount : 0
-  const barY = yPosition + (rowHeight - 28) / 2
-  const barH = 28
+  const barH = 36
+  const barY = yPosition + (rowHeight - barH) / 2
 
   // Get dominant team color for this sprint's tasks
   const teamCounts = new Map<string, number>()
@@ -35,12 +35,6 @@ export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight,
   }
   const color = getTeamColor(dominantTeamName)
 
-  // Milestone markers at 25%, 50%, 75% of the bar
-  const milestones = [0.25, 0.5, 0.75].map(pct => ({
-    x: barX + barWidth * pct,
-    passed: progress >= pct,
-  }))
-
   return (
     <g>
       {/* Background bar */}
@@ -49,11 +43,11 @@ export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight,
         y={barY}
         width={barWidth}
         height={barH}
-        rx={6}
+        rx={8}
         fill={color.barBg}
         stroke={color.bar}
-        strokeWidth={0.5}
-        strokeOpacity={0.3}
+        strokeWidth={1}
+        strokeOpacity={0.15}
       />
 
       {/* Progress fill */}
@@ -63,13 +57,13 @@ export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight,
           y={barY}
           width={Math.min(barWidth * progress, barWidth)}
           height={barH}
-          rx={6}
+          rx={8}
           fill={color.bar}
-          opacity={0.55}
+          opacity={0.3}
         />
       )}
 
-      {/* Remaining dashed outline */}
+      {/* Remaining dashed line */}
       {progress > 0 && progress < 1 && (
         <line
           x1={barX + barWidth * progress}
@@ -78,35 +72,21 @@ export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight,
           y2={barY + barH / 2}
           stroke={color.bar}
           strokeWidth={2}
-          strokeDasharray="6 3"
-          strokeOpacity={0.3}
+          strokeDasharray="6 4"
+          strokeOpacity={0.25}
         />
       )}
 
-      {/* Milestone diamonds */}
-      {milestones.map((ms, i) => (
-        <g key={i} transform={`translate(${ms.x}, ${barY + barH + 10})`}>
-          <polygon
-            points="0,-4 4,0 0,4 -4,0"
-            fill={ms.passed ? color.bar : '#3a3a5a'}
-            stroke={ms.passed ? color.bar : '#4a4a6a'}
-            strokeWidth={1}
-          />
-        </g>
-      ))}
-
-      {/* Task count inside bar */}
-      {barWidth > 60 && (
-        <text
-          x={barX + 10}
-          y={barY + barH / 2 + 4}
-          fontSize={11}
-          fontWeight={500}
-          fill="#e0e0f0"
-        >
-          {sprint.doneCount}/{sprint.totalCount}
-        </text>
-      )}
+      {/* Task count label — show next to bar if bar is too small, otherwise inside */}
+      <text
+        x={barWidth > 80 ? barX + 12 : barX + barWidth + 8}
+        y={barY + barH / 2 + 5}
+        fontSize={13}
+        fontWeight={600}
+        fill={barWidth > 80 ? color.bar : '#6b7280'}
+      >
+        {sprint.doneCount}/{sprint.totalCount} tasks
+      </text>
     </g>
   )
 }

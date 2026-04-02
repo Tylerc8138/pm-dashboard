@@ -38,6 +38,7 @@ export function DependencyMap({ onEditTask }: MapProps) {
   const { data: teams = [] } = useTeams()
   const { data: allDeps = [] } = useAllDependencies()
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null)
+  const [hoveredEdge, setHoveredEdge] = useState<typeof edges[number] | null>(null)
 
   const { nodes, edges, width, height, stats } = useMemo(() => {
     // Filter deps to only include tasks in current view
@@ -127,9 +128,16 @@ export function DependencyMap({ onEditTask }: MapProps) {
         fromY: from.y + nodeH / 2,
         toX: to.x,
         toY: to.y + nodeH / 2,
+        midX: (from.x + nodeW + to.x) / 2,
+        midY: (from.y + nodeH / 2 + to.y + nodeH / 2) / 2,
         resolved: from.task.status === 'done',
+        blockingTitle: from.task.title,
+        blockingTeam: from.teamName,
+        blockingStatus: from.task.status,
+        waitingTitle: to.task.title,
+        waitingTeam: to.teamName,
       }
-    }).filter(Boolean) as { id: string; fromX: number; fromY: number; toX: number; toY: number; resolved: boolean }[]
+    }).filter(Boolean) as { id: string; fromX: number; fromY: number; toX: number; toY: number; midX: number; midY: number; resolved: boolean; blockingTitle: string; blockingTeam: string; blockingStatus: string; waitingTitle: string; waitingTeam: string }[]
 
     // Stats
     const bottlenecks = connectedTasks.filter(t => (blocksMap.get(t.id)?.length ?? 0) >= 2).length
@@ -205,25 +213,79 @@ export function DependencyMap({ onEditTask }: MapProps) {
             {/* Edges */}
             {edges.map((edge) => {
               const midX = (edge.fromX + edge.toX) / 2
+              const isHoveredEdge = hoveredEdge?.id === edge.id
               return (
                 <g key={edge.id}>
+                  {/* Invisible wide path for easier hover */}
+                  <path
+                    d={`M ${edge.fromX} ${edge.fromY} C ${midX} ${edge.fromY}, ${midX} ${edge.toY}, ${edge.toX} ${edge.toY}`}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={16}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredEdge(edge)}
+                    onMouseLeave={() => setHoveredEdge(null)}
+                  />
+                  {/* Visible path */}
                   <path
                     d={`M ${edge.fromX} ${edge.fromY} C ${midX} ${edge.fromY}, ${midX} ${edge.toY}, ${edge.toX} ${edge.toY}`}
                     fill="none"
                     stroke={edge.resolved ? '#86efac' : '#fbbf24'}
-                    strokeWidth={2}
+                    strokeWidth={isHoveredEdge ? 3.5 : 2}
                     strokeDasharray={edge.resolved ? '0' : '6 3'}
-                    opacity={0.7}
+                    opacity={isHoveredEdge ? 1 : 0.7}
+                    className="pointer-events-none"
                   />
                   {/* Arrow head */}
                   <polygon
                     points={`${edge.toX},${edge.toY} ${edge.toX - 8},${edge.toY - 4} ${edge.toX - 8},${edge.toY + 4}`}
                     fill={edge.resolved ? '#86efac' : '#fbbf24'}
-                    opacity={0.7}
+                    opacity={isHoveredEdge ? 1 : 0.7}
+                    className="pointer-events-none"
                   />
                 </g>
               )
             })}
+
+            {/* Edge hover tooltip */}
+            {hoveredEdge && (
+              <g>
+                <rect
+                  x={hoveredEdge.midX - 140}
+                  y={hoveredEdge.midY - 48}
+                  width={280}
+                  height={96}
+                  rx={8}
+                  fill="white"
+                  stroke={hoveredEdge.resolved ? '#86efac' : '#fbbf24'}
+                  strokeWidth={1.5}
+                  filter="drop-shadow(0 4px 6px rgba(0,0,0,0.1))"
+                  className="pointer-events-none"
+                />
+                {/* "blocks" label */}
+                <text x={hoveredEdge.midX} y={hoveredEdge.midY - 30} textAnchor="middle" fontSize={10} fontWeight={600} fill={hoveredEdge.resolved ? '#15803d' : '#b45309'} className="pointer-events-none">
+                  {hoveredEdge.resolved ? 'RESOLVED' : 'PENDING DEPENDENCY'}
+                </text>
+                {/* Blocking task */}
+                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY - 10} fontSize={11} fontWeight={600} fill="#1f2937" className="pointer-events-none">
+                  {hoveredEdge.blockingTitle.length > 30 ? hoveredEdge.blockingTitle.slice(0, 30) + '...' : hoveredEdge.blockingTitle}
+                </text>
+                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 4} fontSize={10} fill="#6b7280" className="pointer-events-none">
+                  {hoveredEdge.blockingTeam} · {hoveredEdge.blockingStatus === 'done' ? 'Done' : 'In progress'}
+                </text>
+                {/* Arrow */}
+                <text x={hoveredEdge.midX} y={hoveredEdge.midY + 22} textAnchor="middle" fontSize={11} fill="#9ca3af" className="pointer-events-none">
+                  blocks ↓
+                </text>
+                {/* Waiting task */}
+                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 38} fontSize={11} fontWeight={600} fill="#1f2937" className="pointer-events-none">
+                  {hoveredEdge.waitingTitle.length > 30 ? hoveredEdge.waitingTitle.slice(0, 30) + '...' : hoveredEdge.waitingTitle}
+                </text>
+                <text x={hoveredEdge.midX - 130} y={hoveredEdge.midY + 52} fontSize={10} fill="#6b7280" className="pointer-events-none">
+                  {hoveredEdge.waitingTeam}
+                </text>
+              </g>
+            )}
 
             {/* Nodes */}
             {nodes.map((node) => {
