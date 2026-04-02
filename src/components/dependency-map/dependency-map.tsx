@@ -288,17 +288,26 @@ export function DependencyMap({ onEditTask }: MapProps) {
             const isDone = node.task.status === 'done'
             const teamInitial = node.teamName.charAt(0).toUpperCase()
 
+            const teamColorMap: Record<string, { bg: string; text: string }> = {
+              PM: { bg: 'bg-purple-100', text: 'text-purple-700' },
+              Product: { bg: 'bg-blue-100', text: 'text-blue-700' },
+              Marketing: { bg: 'bg-green-100', text: 'text-green-700' },
+              Comms: { bg: 'bg-orange-100', text: 'text-orange-700' },
+              Legal: { bg: 'bg-red-100', text: 'text-red-700' },
+              'Search Strategy': { bg: 'bg-teal-100', text: 'text-teal-700' },
+            }
+            const tc = teamColorMap[node.teamName] ?? { bg: 'bg-neutral-100', text: 'text-neutral-500' }
+
             return (
               <div
                 key={node.task.id}
                 data-node
-                className={`absolute rounded-lg border bg-white hover:shadow-md transition-shadow cursor-pointer ${
-                  isDone ? 'opacity-60' : ''
+                className={`absolute rounded-lg border-2 border-neutral-900 bg-white hover:shadow-lg transition-shadow cursor-pointer ${
+                  isDone ? 'opacity-60 border-neutral-400' : ''
                 }`}
                 style={{
                   left: node.x, top: node.y,
                   width: NODE_W, height: NODE_H,
-                  borderColor: isDone ? '#d4d4d4' : '#e5e5e5',
                 }}
                 onClick={() => onEditTask(node.task)}
               >
@@ -310,25 +319,25 @@ export function DependencyMap({ onEditTask }: MapProps) {
                 </div>
 
                 {/* Divider */}
-                <div className="mx-3 border-t border-neutral-100" />
+                <div className="mx-3 border-t border-neutral-200" />
 
                 {/* Bottom section */}
                 <div className="px-3 pt-2 pb-3 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <div className="flex h-5 w-5 items-center justify-center rounded bg-neutral-100 text-[9px] font-semibold text-neutral-500">
+                    <div className={`flex h-5 w-5 items-center justify-center rounded text-[9px] font-semibold ${tc.bg} ${tc.text}`}>
                       {teamInitial}
                     </div>
-                    <span className="text-[11px] text-neutral-500">{node.teamName}</span>
+                    <span className={`text-[11px] font-medium ${tc.text}`}>{node.teamName}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
                     {isDone && (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-white text-[9px]">✓</div>
                     )}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                      node.task.priority === 'high' ? 'bg-neutral-900 text-white' :
-                      node.task.priority === 'medium' ? 'bg-neutral-200 text-neutral-700' :
-                      'bg-neutral-100 text-neutral-400'
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                      node.task.priority === 'high' ? 'bg-red-100 text-red-700' :
+                      node.task.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
+                      'bg-gray-100 text-gray-500'
                     }`}>
                       {node.task.priority.charAt(0).toUpperCase() + node.task.priority.slice(1)}
                     </span>
