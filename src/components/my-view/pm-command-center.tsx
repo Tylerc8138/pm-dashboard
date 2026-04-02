@@ -7,8 +7,9 @@ import { useTasks } from '@/hooks/use-tasks'
 import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
+import { useAllDependencies } from '@/hooks/use-dependencies'
 import { useFilters } from '@/contexts/filter-context'
-import { CheckCircle2, AlertTriangle, Flame, Users, Clock } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Flame, Users, Clock, GitBranch } from 'lucide-react'
 import type { Task } from '@/types/database'
 
 const TEAM_HEALTH_COLORS: Record<string, string> = {
@@ -30,6 +31,7 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
   const { data: tasks = [] } = useTasks({ sprintId })
   const { data: teams = [] } = useTeams()
   const { data: _members = [] } = useMembers()
+  const { data: allDeps = [] } = useAllDependencies()
   const { data: sprints = [] } = useSprints()
 
   const currentSprint = sprints.find((s) => s.id === sprintId) ?? sprints[0]
@@ -68,6 +70,20 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
       }))
       .sort((a, b) => b.days - a.days)
   }, [tasks, teams])
+
+  const crossTeamHandoffs = useMemo(() => {
+    return allDeps
+      .map((dep) => {
+        const blockingTask = tasks.find(t => t.id === dep.blocking_task_id)
+        const waitingTask = tasks.find(t => t.id === dep.waiting_task_id)
+        if (!blockingTask || !waitingTask) return null
+        if (blockingTask.status === 'done') return null // resolved
+        const blockingTeam = teams.find(t => t.id === blockingTask.team_id)
+        const waitingTeam = teams.find(t => t.id === waitingTask.team_id)
+        return { dep, blockingTask, waitingTask, blockingTeam, waitingTeam }
+      })
+      .filter(Boolean) as { dep: typeof allDeps[0]; blockingTask: Task; waitingTask: Task; blockingTeam: typeof teams[0] | undefined; waitingTeam: typeof teams[0] | undefined }[]
+  }, [allDeps, tasks, teams])
 
   return (
     <PortalLayout
@@ -133,6 +149,41 @@ export function PmCommandCenter({ onEditTask }: PmCommandCenterProps) {
           ))}
         </CardContent>
       </Card>
+
+      {/* Cross-Team Handoffs */}
+      {crossTeamHandoffs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-amber-600" />
+              <CardTitle className="text-sm font-semibold">Cross-Team Handoffs</CardTitle>
+              <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">{crossTeamHandoffs.length} pending</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1 overflow-x-auto">
+              <div className="grid grid-cols-[1fr_90px_1fr_90px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                <span>Waiting Task</span>
+                <span>Team</span>
+                <span>Blocked By</span>
+                <span>Team</span>
+              </div>
+              {crossTeamHandoffs.map(({ dep, blockingTask, waitingTask, blockingTeam, waitingTeam }) => (
+                <button
+                  key={dep.id}
+                  onClick={() => onEditTask(waitingTask)}
+                  className="grid w-full grid-cols-[1fr_90px_1fr_90px] gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
+                >
+                  <span className="truncate">{waitingTask.title}</span>
+                  <span className="text-muted-foreground text-xs">{waitingTeam?.name ?? '—'}</span>
+                  <span className="truncate text-amber-700">{blockingTask.title}</span>
+                  <span className="text-muted-foreground text-xs">{blockingTeam?.name ?? '—'}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Blockers Table */}
       <Card>

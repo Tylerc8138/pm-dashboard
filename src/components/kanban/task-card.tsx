@@ -5,7 +5,9 @@ import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useReferences } from '@/hooks/use-references'
 import { useAssignees } from '@/hooks/use-assignees'
-import { AlertCircle, GripVertical, Link, ImageIcon, Users } from 'lucide-react'
+import { useDependencies } from '@/hooks/use-dependencies'
+import { useTasks } from '@/hooks/use-tasks'
+import { AlertCircle, GripVertical, Link, ImageIcon, Users, Clock, GitBranch } from 'lucide-react'
 import type { Task, TaskPriority } from '@/types/database'
 
 interface TaskCardProps {
@@ -34,6 +36,8 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
   const { data: members } = useMembers()
   const { data: references = [] } = useReferences(task.id)
   const { data: assignees = [] } = useAssignees(task.id)
+  const { data: deps } = useDependencies(task.id)
+  const { data: allTasksData = [] } = useTasks()
 
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -51,6 +55,12 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
   const extraCount = assignees.length > 1 ? assignees.length - 1 : 0
   const linkCount = references.filter(r => r.type === 'link' || !r.type).length
   const imageCount = references.filter(r => r.type === 'image').length
+  const waitingOn = deps?.waitingOn ?? []
+  const blocksCount = deps?.blocks?.length ?? 0
+  const hasUnresolvedDeps = waitingOn.some(d => {
+    const bt = allTasksData.find(t => t.id === d.blocking_task_id)
+    return bt && bt.status !== 'done'
+  })
 
   return (
     <div
@@ -91,6 +101,16 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
         {imageCount > 0 && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
             <ImageIcon className="h-2.5 w-2.5" />{imageCount}
+          </Badge>
+        )}
+        {hasUnresolvedDeps && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5 border-amber-300 text-amber-700 bg-amber-50">
+            <Clock className="h-2.5 w-2.5" />Waiting
+          </Badge>
+        )}
+        {blocksCount > 0 && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+            <GitBranch className="h-2.5 w-2.5" />Blocks {blocksCount}
           </Badge>
         )}
         {task.is_blocked && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}

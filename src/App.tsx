@@ -6,6 +6,7 @@ import { AllTasksPage } from '@/components/all-tasks/all-tasks-page'
 import { TaskDialog } from '@/components/tasks/task-dialog'
 import { MyView } from '@/components/my-view/my-view'
 import { LinksView } from '@/components/links/links-view'
+import { CalendarPage } from '@/components/calendar/calendar-page'
 import { OverviewPage } from '@/components/overview/overview-page'
 import { SprintManager } from '@/components/sprints/sprint-manager'
 import { LoginPage } from '@/pages/login'
@@ -76,6 +77,8 @@ function Dashboard() {
             <MyView onEditTask={handleEditTask} />
           ) : view === 'alltasks' ? (
             <AllTasksPage onEditTask={handleEditTask} onNewTask={handleNewTask} />
+          ) : view === 'calendar' ? (
+            <CalendarPage />
           ) : (
             <LinksView onEditTask={handleEditTask} />
           )}

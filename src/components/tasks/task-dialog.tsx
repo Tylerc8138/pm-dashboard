@@ -13,8 +13,10 @@ import { useCurrentMember } from '@/hooks/use-current-member'
 import { useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/use-tasks'
 import { useReferences, useCreateReference, useDeleteReference, uploadImage } from '@/hooks/use-references'
 import { useAssignees, useAddAssignee, useUpdateAssignee, useRemoveAssignee } from '@/hooks/use-assignees'
+import { useDependencies, useAddDependency, useRemoveDependency } from '@/hooks/use-dependencies'
+import { useTasks } from '@/hooks/use-tasks'
 import type { Task, TaskStatus, TaskPriority } from '@/types/database'
-import { Trash2, Plus, ExternalLink, Link, X, User, ImagePlus, Upload, UserPlus } from 'lucide-react'
+import { Trash2, Plus, ExternalLink, Link, X, User, ImagePlus, Upload, UserPlus, GitBranch, CheckCircle2, Clock } from 'lucide-react'
 import React from 'react'
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -50,6 +52,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const updateAssigneeHook = useUpdateAssignee()
   const removeAssignee = useRemoveAssignee()
 
+  const { data: deps } = useDependencies(task?.id ?? null)
+  const addDep = useAddDependency()
+  const removeDep = useRemoveDependency()
+  const { data: allTasks = [] } = useTasks()
+
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<TaskStatus>('todo')
@@ -76,6 +83,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const [newAssigneeMemberId, setNewAssigneeMemberId] = useState('')
   const [newAssigneeDesc, setNewAssigneeDesc] = useState('')
 
+  // Dependency state
+  const [showDepForm, setShowDepForm] = useState(false)
+  const [depType, setDepType] = useState<'waiting' | 'blocks'>('waiting')
+  const [depTaskId, setDepTaskId] = useState('')
+
   useEffect(() => {
     if (task) {
       setTitle(task.title); setDescription(task.description ?? '')
@@ -90,6 +102,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
     setConfirmDelete(false); setShowRefForm(false); setShowImageForm(false)
     setRefLabel(''); setRefUrl(''); setImageLabel(''); setImageFile(null); setImagePreview(null)
     setShowAssigneeForm(false); setNewAssigneeMemberId(''); setNewAssigneeDesc('')
+    setShowDepForm(false); setDepTaskId('')
   }, [task, open, defaultStatus, sprints, teams])
 
   const sprintLabel = sprints?.find((s) => s.id === sprintId)
@@ -193,6 +206,37 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   }
 
   const handleDeleteReference = async (refId: string) => { if (task) await deleteReference.mutateAsync({ id: refId, taskId: task.id }) }
+
+  // Dependency handlers
+  const handleAddDep = async () => {
+    if (!task || !depTaskId) return
+    try {
+      if (depType === 'waiting') {
+        await addDep.mutateAsync({ blockingTaskId: depTaskId, waitingTaskId: task.id })
+      } else {
+        await addDep.mutateAsync({ blockingTaskId: task.id, waitingTaskId: depTaskId })
+      }
+      setDepTaskId(''); setShowDepForm(false)
+    } catch (err: unknown) {
+      const e = err as Record<string, unknown>
+      alert(`Error adding dependency: ${e?.message ?? JSON.stringify(err)}`)
+    }
+  }
+
+  const handleRemoveDep = async (depId: string) => {
+    await removeDep.mutateAsync(depId)
+  }
+
+  const waitingOn = deps?.waitingOn ?? []
+  const blocks = deps?.blocks ?? []
+
+  // Tasks available for dependency linking (exclude self and already linked)
+  const linkedTaskIds = new Set([
+    ...waitingOn.map(d => d.blocking_task_id),
+    ...blocks.map(d => d.waiting_task_id),
+    task?.id ?? '',
+  ])
+  const availableDepTasks = allTasks.filter(t => !linkedTaskIds.has(t.id))
 
   const linkRefs = references.filter((r) => r.type === 'link' || !r.type)
   const imageRefs = references.filter((r) => r.type === 'image')
@@ -345,6 +389,94 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                     <div className="flex gap-2 justify-end">
                       <Button variant="ghost" size="sm" onClick={() => { setShowAssigneeForm(false); setNewAssigneeMemberId(''); setNewAssigneeDesc('') }}>Cancel</Button>
                       <Button size="sm" onClick={handleAddAssignee} disabled={!newAssigneeMemberId}>Add</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Dependencies Section */}
+          {isEdit && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5"><GitBranch className="h-4 w-4" />Dependencies</Label>
+                  <Button variant="ghost" size="sm" onClick={() => setShowDepForm(!showDepForm)} className="gap-1 text-xs">
+                    <Plus className="h-3 w-3" />Add Dependency
+                  </Button>
+                </div>
+
+                {/* Waiting On */}
+                {waitingOn.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Waiting on:</p>
+                    {waitingOn.map((dep) => {
+                      const blockingTask = allTasks.find(t => t.id === dep.blocking_task_id)
+                      const blockingTeam = teams?.find(t => t.id === blockingTask?.team_id)
+                      const isResolved = blockingTask?.status === 'done'
+                      return (
+                        <div key={dep.id} className={`flex items-center gap-2 rounded-md border px-3 py-2 ${isResolved ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                          {isResolved ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" /> : <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{blockingTask?.title ?? 'Unknown task'}</p>
+                            {blockingTeam && <p className="text-[10px] text-muted-foreground">{blockingTeam.name}</p>}
+                          </div>
+                          <span className={`text-[10px] font-medium ${isResolved ? 'text-green-600' : 'text-amber-600'}`}>{isResolved ? 'Done' : 'Pending'}</span>
+                          <button onClick={() => handleRemoveDep(dep.id)} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><X className="h-3.5 w-3.5" /></button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Blocks */}
+                {blocks.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Blocks:</p>
+                    {blocks.map((dep) => {
+                      const waitingTask = allTasks.find(t => t.id === dep.waiting_task_id)
+                      const waitingTeam = teams?.find(t => t.id === waitingTask?.team_id)
+                      return (
+                        <div key={dep.id} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                          <GitBranch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{waitingTask?.title ?? 'Unknown task'}</p>
+                            {waitingTeam && <p className="text-[10px] text-muted-foreground">{waitingTeam.name}</p>}
+                          </div>
+                          <button onClick={() => handleRemoveDep(dep.id)} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><X className="h-3.5 w-3.5" /></button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {waitingOn.length === 0 && blocks.length === 0 && !showDepForm && (
+                  <p className="text-xs text-muted-foreground italic">No dependencies. Link tasks that depend on each other.</p>
+                )}
+
+                {showDepForm && (
+                  <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                    <div className="flex gap-2">
+                      <Button variant={depType === 'waiting' ? 'default' : 'outline'} size="sm" onClick={() => setDepType('waiting')} className="text-xs">This task is waiting on...</Button>
+                      <Button variant={depType === 'blocks' ? 'default' : 'outline'} size="sm" onClick={() => setDepType('blocks')} className="text-xs">This task blocks...</Button>
+                    </div>
+                    <Select value={depTaskId || 'none'} onValueChange={(v: string | null) => setDepTaskId(v === 'none' ? '' : v ?? '')}>
+                      <SelectTrigger className="w-full">
+                        <span className="truncate">{depTaskId ? (allTasks.find(t => t.id === depTaskId)?.title ?? 'Select task') : 'Select task'}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Select task</SelectItem>
+                        {availableDepTasks.map((t) => {
+                          const tm = teams?.find(team => team.id === t.team_id)
+                          return <SelectItem key={t.id} value={t.id}>{t.title} ({tm?.name})</SelectItem>
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => { setShowDepForm(false); setDepTaskId('') }}>Cancel</Button>
+                      <Button size="sm" onClick={handleAddDep} disabled={!depTaskId}>Add</Button>
                     </div>
                   </div>
                 )}

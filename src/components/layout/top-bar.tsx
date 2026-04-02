@@ -3,11 +3,11 @@ import { useCurrentMember } from '@/hooks/use-current-member'
 import { useTeams } from '@/hooks/use-teams'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, LogOut, ChevronDown, UserCircle, LinkIcon, Settings, Home } from 'lucide-react'
+import { LayoutGrid, LogOut, ChevronDown, UserCircle, LinkIcon, Settings, Home, CalendarDays } from 'lucide-react'
 
 const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
 
-export type ViewType = 'overview' | 'myview' | 'alltasks' | 'links'
+export type ViewType = 'overview' | 'myview' | 'alltasks' | 'links' | 'calendar'
 
 interface TopBarProps {
   view: ViewType
@@ -69,6 +69,15 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
           >
             <LinkIcon className="h-4 w-4" />
             Links
+          </Button>
+          <Button
+            variant={view === 'calendar' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('calendar')}
+            className="gap-1.5"
+          >
+            <CalendarDays className="h-4 w-4" />
+            Calendar
           </Button>
         </div>
       </div>

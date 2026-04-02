@@ -86,6 +86,13 @@ export interface TaskAssigneeInsert {
   description?: string
 }
 
+export interface TaskDependency {
+  id: string
+  blocking_task_id: string
+  waiting_task_id: string
+  created_at: string
+}
+
 export interface TaskReference {
   id: string
   task_id: string
