@@ -144,14 +144,20 @@ export function EmailManager() {
 
   // ===== AUTO-GENERATE DRAFT =====
   const generateDraft = () => {
+    const today = new Date()
+    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' })
+    const pmName = currentMember?.full_name?.split(' ')[0] ?? 'PM'
+
     const activeTasks = filteredTasks.filter(t => t.status !== 'done')
-    const overdue = activeTasks.filter(t => t.due_date && new Date(t.due_date) < new Date())
+    const overdue = activeTasks.filter(t => t.due_date && new Date(t.due_date) < today)
     const blocked = activeTasks.filter(t => t.is_blocked)
     const inProgress = activeTasks.filter(t => t.status === 'in_progress')
     const todo = activeTasks.filter(t => t.status === 'todo')
     const done = filteredTasks.filter(t => t.status === 'done')
+    const highPriority = activeTasks.filter(t => t.priority === 'high')
+    const dueSoon = activeTasks.filter(t => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) <= new Date(Date.now() + 7 * 86400000))
 
-    // Build assignee lookup: task_id → member names
+    // Build assignee lookup: task_id → member first names
     const taskAssignees = new Map<string, string[]>()
     for (const a of allAssignees) {
       const m = memberMap.get(a.member_id)
@@ -161,7 +167,7 @@ export function EmailManager() {
       }
     }
 
-    // Build dependency info: task_id → what it's waiting on
+    // Build dependency info: task_id → blocking task titles
     const taskDepsMap = new Map<string, string[]>()
     for (const dep of allDeps) {
       const blockingTask = filteredTasks.find(t => t.id === dep.blocking_task_id)
@@ -171,6 +177,13 @@ export function EmailManager() {
       }
     }
 
+    // Cross-team deps
+    const crossTeamDeps = allDeps.filter(d => {
+      const blocking = filteredTasks.find(t => t.id === d.blocking_task_id)
+      const waiting = filteredTasks.find(t => t.id === d.waiting_task_id)
+      return blocking && waiting && blocking.team_id !== waiting.team_id && blocking.status !== 'done'
+    })
+
     // Group in-progress by team
     const teamGroups = new Map<string, typeof inProgress>()
     for (const t of inProgress) {
@@ -179,87 +192,141 @@ export function EmailManager() {
       teamGroups.get(name)!.push(t)
     }
 
-    const formatTask = (t: typeof activeTasks[0]) => {
+    const formatTask = (t: typeof activeTasks[0], showTeam = false) => {
       const assignees = taskAssignees.get(t.id)
       const deps = taskDepsMap.get(t.id)
       const parts = [t.title]
+      if (showTeam) parts.push(`(${teamMap.get(t.team_id) ?? 'Unknown'})`)
       if (assignees?.length) parts.push(`→ ${assignees.join(', ')}`)
       if (t.due_date) {
-        const isOverdue = new Date(t.due_date) < new Date()
+        const isOverdue = new Date(t.due_date) < today
         parts.push(isOverdue ? '(overdue)' : `due ${new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
       }
       if (t.priority === 'high') parts.push('(high priority)')
-      if (deps?.length) parts.push(`— waiting on: ${deps.join(', ')}`)
+      if (deps?.length) parts.push(`— blocked by: ${deps.join(', ')}`)
       return `- ${parts.join(' ')}`
     }
 
-    // Build the draft
     const lines: string[] = []
+    const progressPct = filteredTasks.length > 0 ? Math.round((done.length / filteredTasks.length) * 100) : 0
 
-    lines.push(`Hey team,`)
+    // ==================
+    // INTRO
+    // ==================
+    lines.push(`Happy ${dayName} team,`)
     lines.push('')
-    lines.push(`Here's where we stand${selectedSprint ? ` on ${selectedSprint.name}` : ' today'}. We have ${done.length} tasks done, ${inProgress.length} in progress, and ${todo.length} in the backlog.`)
-
-    if (overdue.length > 0) {
-      lines.push('')
-      lines.push(`## Needs Attention — ${overdue.length} Overdue`)
-      lines.push('')
-      for (const t of overdue) lines.push(formatTask(t))
+    lines.push(`Here's your ${selectedSprint ? selectedSprint.name : 'project'} update. We're currently at ${progressPct}% completion — ${done.length} tasks done out of ${filteredTasks.length} total, with ${inProgress.length} actively in progress.`)
+    if (overdue.length > 0 || blocked.length > 0) {
+      const alerts: string[] = []
+      if (overdue.length > 0) alerts.push(`${overdue.length} overdue item${overdue.length > 1 ? 's' : ''}`)
+      if (blocked.length > 0) alerts.push(`${blocked.length} blocker${blocked.length > 1 ? 's' : ''}`)
+      lines.push(`Heads up — we have ${alerts.join(' and ')} that need attention.`)
     }
 
-    if (blocked.length > 0) {
+    // ==================
+    // BODY
+    // ==================
+
+    // --- Completed ---
+    if (done.length > 0) {
       lines.push('')
-      lines.push(`## Blocked — ${blocked.length} Items`)
+      lines.push(`## What's Been Completed`)
       lines.push('')
-      for (const t of blocked) {
-        const reason = t.blocked_reason ? ` — ${t.blocked_reason}` : ''
-        lines.push(`- ${t.title} (${teamMap.get(t.team_id) ?? 'Unknown'})${reason}`)
+      const recentDone = done.slice(0, 8)
+      for (const t of recentDone) {
+        const assignees = taskAssignees.get(t.id)
+        lines.push(`- ${t.title} (${teamMap.get(t.team_id) ?? ''})${assignees?.length ? ` — ${assignees.join(', ')}` : ''}`)
       }
+      if (done.length > 8) lines.push(`- ...and ${done.length - 8} more`)
     }
 
+    // --- In Progress by Team ---
     if (teamGroups.size > 0) {
       lines.push('')
-      lines.push(`## In Progress by Team`)
+      lines.push(`## Currently In Progress`)
+      lines.push('')
       for (const [teamName, tTasks] of teamGroups) {
-        lines.push('')
         lines.push(`${teamName}:`)
         for (const t of tTasks) lines.push(formatTask(t))
+        lines.push('')
       }
     }
 
-    // Cross-team dependencies
-    const crossTeamDeps = allDeps.filter(d => {
-      const blocking = filteredTasks.find(t => t.id === d.blocking_task_id)
-      const waiting = filteredTasks.find(t => t.id === d.waiting_task_id)
-      return blocking && waiting && blocking.team_id !== waiting.team_id && blocking.status !== 'done'
-    })
+    // --- To-Do / Up Next ---
+    if (todo.length > 0) {
+      lines.push(`## To Do`)
+      lines.push('')
+      for (const t of todo.slice(0, 10)) lines.push(formatTask(t, true))
+      if (todo.length > 10) lines.push(`- ...and ${todo.length - 10} more in the backlog`)
+      lines.push('')
+    }
 
-    if (crossTeamDeps.length > 0) {
+    // --- Call-Outs ---
+    const hasCallouts = overdue.length > 0 || blocked.length > 0 || crossTeamDeps.length > 0 || highPriority.length > 0
+    if (hasCallouts) {
+      lines.push(`## Call-Outs`)
       lines.push('')
-      lines.push(`## Cross-Team Dependencies`)
-      lines.push('')
-      for (const dep of crossTeamDeps) {
-        const blocking = filteredTasks.find(t => t.id === dep.blocking_task_id)!
-        const waiting = filteredTasks.find(t => t.id === dep.waiting_task_id)!
-        lines.push(`- "${blocking.title}" (${teamMap.get(blocking.team_id)}) blocks "${waiting.title}" (${teamMap.get(waiting.team_id)})`)
+
+      if (overdue.length > 0) {
+        lines.push(`Overdue:`)
+        for (const t of overdue) lines.push(formatTask(t, true))
+        lines.push('')
+      }
+
+      if (blocked.length > 0) {
+        lines.push(`Blocked:`)
+        for (const t of blocked) {
+          const reason = t.blocked_reason ? ` — "${t.blocked_reason}"` : ''
+          const assignees = taskAssignees.get(t.id)
+          lines.push(`- ${t.title} (${teamMap.get(t.team_id) ?? ''})${assignees?.length ? ` → ${assignees.join(', ')}` : ''}${reason}`)
+        }
+        lines.push('')
+      }
+
+      if (crossTeamDeps.length > 0) {
+        lines.push(`Cross-Team Dependencies:`)
+        for (const dep of crossTeamDeps) {
+          const blocking = filteredTasks.find(t => t.id === dep.blocking_task_id)!
+          const waiting = filteredTasks.find(t => t.id === dep.waiting_task_id)!
+          lines.push(`- "${blocking.title}" (${teamMap.get(blocking.team_id)}) is blocking "${waiting.title}" (${teamMap.get(waiting.team_id)})`)
+        }
+        lines.push('')
+      }
+
+      if (highPriority.length > 0 && overdue.length === 0) {
+        lines.push(`High Priority:`)
+        for (const t of highPriority.slice(0, 5)) lines.push(formatTask(t, true))
+        lines.push('')
       }
     }
 
-    if (todo.length > 0 && todo.length <= 8) {
-      lines.push('')
-      lines.push(`## Up Next`)
-      lines.push('')
-      for (const t of todo.slice(0, 8)) lines.push(formatTask(t))
-    }
-
+    // --- Goals for This Week ---
+    lines.push(`## Goals for This Week`)
     lines.push('')
-    lines.push(`Let me know if anything needs to shift. Check the dashboard for the full picture.`)
+    if (dueSoon.length > 0) {
+      for (const t of dueSoon) lines.push(formatTask(t, true))
+    } else if (inProgress.length > 0) {
+      lines.push(`- Complete the ${inProgress.length} in-progress items`)
+      if (blocked.length > 0) lines.push(`- Resolve the ${blocked.length} blocker${blocked.length > 1 ? 's' : ''} holding up progress`)
+      if (todo.length > 0) lines.push(`- Pull the next ${Math.min(todo.length, 3)} items from the backlog`)
+    } else {
+      lines.push(`- Review backlog and prioritize next tasks`)
+    }
+
+    // ==================
+    // SIGN-OFF
+    // ==================
+    lines.push('')
+    lines.push(`If anything looks off or priorities need to shift, let me know. You can always check the live dashboard for the latest.`)
+    lines.push('')
+    lines.push(`Best,`)
+    lines.push(`${pmName}`)
 
     // Set subject
     if (overdue.length > 0) {
-      setSubject(`${selectedSprint?.name ?? 'Project'} Update — ${overdue.length} overdue items need attention`)
+      setSubject(`${selectedSprint?.name ?? 'Project'} Update — ${overdue.length} overdue, needs attention`)
     } else {
-      setSubject(`${selectedSprint?.name ?? 'Daily'} Update — ${stats.inProgress} in progress, ${stats.done} done`)
+      setSubject(`${selectedSprint?.name ?? 'Weekly'} Update — ${progressPct}% complete, ${inProgress.length} in progress`)
     }
 
     setDraft(lines.join('\n'))
