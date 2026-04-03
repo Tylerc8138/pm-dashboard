@@ -58,7 +58,7 @@ export function PortalTaskList({ tasks, statusConfig, onEditTask }: PortalTaskLi
 
   const handleQuickStatus = (task: Task, newStatus: TaskStatus) => {
     if (newStatus === task.status) return
-    updateTask.mutate({ id: task.id, status: newStatus })
+    updateTask.mutate({ update: { id: task.id, status: newStatus }, previousTask: task })
   }
 
   return (

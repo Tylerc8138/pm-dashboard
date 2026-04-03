@@ -16,6 +16,7 @@ import { useAssignees, useAddAssignee, useUpdateAssignee, useRemoveAssignee } fr
 import { useDependencies, useAddDependency, useRemoveDependency } from '@/hooks/use-dependencies'
 import { useTasks } from '@/hooks/use-tasks'
 import type { Task, TaskStatus, TaskPriority } from '@/types/database'
+import { TaskActivity } from './task-activity'
 import { Trash2, Plus, ExternalLink, Link, X, User, ImagePlus, Upload, UserPlus, GitBranch, CheckCircle2, Clock } from 'lucide-react'
 import React from 'react'
 
@@ -65,6 +66,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
   const [teamId, setTeamId] = useState('')
   const [isBlocked, setIsBlocked] = useState(false)
   const [blockedReason, setBlockedReason] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Reference state
@@ -94,10 +96,12 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       setStatus(task.status); setPriority(task.priority ?? 'medium')
       setSprintId(task.sprint_id); setTeamId(task.team_id)
       setIsBlocked(task.is_blocked); setBlockedReason(task.blocked_reason ?? '')
+      setDueDate(task.due_date ?? '')
     } else {
       setTitle(''); setDescription(''); setStatus(defaultStatus ?? 'todo')
       setPriority('medium'); setSprintId(sprints?.[0]?.id ?? '')
       setTeamId(teams?.[0]?.id ?? ''); setIsBlocked(false); setBlockedReason('')
+      setDueDate('')
     }
     setConfirmDelete(false); setShowRefForm(false); setShowImageForm(false)
     setRefLabel(''); setRefUrl(''); setImageLabel(''); setImageFile(null); setImagePreview(null)
@@ -124,10 +128,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       title: title.trim(), description, status, priority,
       sprint_id: sprintId, team_id: teamId,
       is_blocked: isBlocked, blocked_reason: isBlocked ? blockedReason : null,
+      due_date: dueDate || null,
     }
     try {
       if (isEdit) {
-        await updateTask.mutateAsync({ id: task.id, ...payload })
+        await updateTask.mutateAsync({ update: { id: task.id, ...payload }, previousTask: task, actorId: currentMember?.id })
       } else {
         await createTask.mutateAsync({
           ...payload, assigned_by_id: currentMember?.id ?? null,
@@ -294,6 +299,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
               <SelectTrigger className="w-full"><span className="truncate">{teamLabel}</span></SelectTrigger>
               <SelectContent>{teams?.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}</SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="due-date">Due Date</Label>
+            <Input id="due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
 
           {isEdit && assignedByMember && (
@@ -562,6 +572,11 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
                 )}
               </div>
             </>
+          )}
+
+          {/* Activity & Comments Section */}
+          {isEdit && task && (
+            <TaskActivity taskId={task.id} currentMemberId={currentMember?.id ?? null} />
           )}
         </div>
 

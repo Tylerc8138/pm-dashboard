@@ -87,6 +87,26 @@ export function TimelineRow({ sprint, startDate, dayWidth, yPosition, rowHeight,
       >
         {sprint.doneCount}/{sprint.totalCount} tasks
       </text>
+
+      {/* Due date markers — diamond for each task with a due_date */}
+      {sprint.tasks
+        .filter(t => t.due_date)
+        .map(t => {
+          const dx = dateToX(parseDate(t.due_date!), startDate, dayWidth)
+          const isDone = t.status === 'done'
+          const isOverdue = !isDone && new Date(t.due_date!) < new Date()
+          const fill = isDone ? '#22c55e' : isOverdue ? '#ef4444' : color.bar
+          return (
+            <g key={`due-${t.id}`}>
+              <polygon
+                points={`${dx},${barY - 2} ${dx + 5},${barY + 4} ${dx},${barY + 10} ${dx - 5},${barY + 4}`}
+                fill={fill}
+                opacity={0.85}
+              />
+              <title>{t.title} — due {t.due_date}{isOverdue ? ' (overdue)' : ''}</title>
+            </g>
+          )
+        })}
     </g>
   )
 }

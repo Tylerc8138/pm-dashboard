@@ -39,7 +39,7 @@ export function useUpdateSprint() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; goal?: string; start_date?: string | null; end_date?: string | null }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; goal?: string; start_date?: string | null; end_date?: string | null; deliverables?: string[]; key_activities?: string[] }) => {
       const { data, error } = await supabase
         .from('sprints')
         .update(updates as unknown as Record<string, unknown>)

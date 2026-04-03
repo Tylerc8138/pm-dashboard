@@ -8,6 +8,7 @@ import { MyView } from '@/components/my-view/my-view'
 import { LinksView } from '@/components/links/links-view'
 import { CalendarPage } from '@/components/calendar/calendar-page'
 import { OverviewPage } from '@/components/overview/overview-page'
+import { EmailManager } from '@/components/email/email-manager'
 import { SprintManager } from '@/components/sprints/sprint-manager'
 import { LoginPage } from '@/pages/login'
 import { GatePage } from '@/pages/gate'
@@ -79,6 +80,8 @@ function Dashboard() {
             <AllTasksPage onEditTask={handleEditTask} onNewTask={handleNewTask} />
           ) : view === 'calendar' ? (
             <CalendarPage />
+          ) : view === 'email' ? (
+            <EmailManager />
           ) : (
             <LinksView onEditTask={handleEditTask} />
           )}

@@ -3,11 +3,11 @@ import { useCurrentMember } from '@/hooks/use-current-member'
 import { useTeams } from '@/hooks/use-teams'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { LayoutGrid, LogOut, ChevronDown, UserCircle, LinkIcon, Settings, Home, CalendarDays } from 'lucide-react'
+import { LayoutGrid, LogOut, ChevronDown, UserCircle, LinkIcon, Settings, Home, CalendarDays, Mail } from 'lucide-react'
 
 const PM_OVERRIDE_EMAILS = ['tylerxcheung@gmail.com', 'tylcheun@visa.com']
 
-export type ViewType = 'overview' | 'myview' | 'alltasks' | 'links' | 'calendar'
+export type ViewType = 'overview' | 'myview' | 'alltasks' | 'links' | 'calendar' | 'email'
 
 interface TopBarProps {
   view: ViewType
@@ -99,6 +99,12 @@ export function TopBar({ view, onViewChange, onManageSprints }: TopBarProps) {
             <ChevronDown className="h-3 w-3 shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {isPm && (
+              <DropdownMenuItem onClick={() => onViewChange('email')} className="gap-2">
+                <Mail className="h-4 w-4" />
+                Manage Email
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={signOut} className="gap-2">
               <LogOut className="h-4 w-4" />
               Sign out

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from './use-activity-log'
 import type { Task, TaskInsert, TaskUpdate } from '@/types/database'
 
 interface TaskFilters {
@@ -43,8 +44,13 @@ export function useCreateTask() {
       if (error) throw error
       return data as Task
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
+      logActivity({
+        task_id: data.id,
+        actor_id: data.assigned_by_id,
+        action: 'created',
+      })
     },
   })
 }
@@ -53,8 +59,12 @@ export function useUpdateTask() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async (task: TaskUpdate) => {
-      const { id, ...updates } = task
+    mutationFn: async ({ update, previousTask, actorId }: {
+      update: TaskUpdate
+      previousTask?: Task | null
+      actorId?: string | null
+    }) => {
+      const { id, ...updates } = update
       const { data, error } = await supabase
         .from('tasks')
         .update(updates as unknown as Record<string, unknown>)
@@ -62,10 +72,33 @@ export function useUpdateTask() {
         .select()
         .single()
       if (error) throw error
-      return data as Task
+      return { task: data as Task, previousTask: previousTask ?? null, actorId: actorId ?? null }
     },
-    onSuccess: () => {
+    onSuccess: ({ task, previousTask, actorId }) => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
+      if (!previousTask) return
+      const actor = actorId ?? task.assigned_by_id
+      // Log specific changes
+      if (previousTask.status !== task.status) {
+        logActivity({ task_id: task.id, actor_id: actor, action: 'status_changed', detail: { from: previousTask.status, to: task.status } })
+      }
+      if (previousTask.priority !== task.priority) {
+        logActivity({ task_id: task.id, actor_id: actor, action: 'priority_changed', detail: { from: previousTask.priority, to: task.priority } })
+      }
+      if (!previousTask.is_blocked && task.is_blocked) {
+        logActivity({ task_id: task.id, actor_id: actor, action: 'blocked', detail: { reason: task.blocked_reason } })
+      }
+      if (previousTask.is_blocked && !task.is_blocked) {
+        logActivity({ task_id: task.id, actor_id: actor, action: 'unblocked' })
+      }
+      // Generic edit for title/description changes
+      const editedFields: string[] = []
+      if (previousTask.title !== task.title) editedFields.push('title')
+      if (previousTask.description !== task.description) editedFields.push('description')
+      if (previousTask.due_date !== task.due_date) editedFields.push('due_date')
+      if (editedFields.length > 0 && previousTask.status === task.status) {
+        logActivity({ task_id: task.id, actor_id: actor, action: 'edited', detail: { fields: editedFields } })
+      }
     },
   })
 }

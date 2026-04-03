@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from './use-activity-log'
 import type { TaskAssignee, TaskAssigneeInsert } from '@/types/database'
 
 export function useAssignees(taskId: string | null) {
@@ -44,9 +45,16 @@ export function useAddAssignee() {
       if (error) throw error
       return data as TaskAssignee
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['assignees', variables.task_id] })
       qc.invalidateQueries({ queryKey: ['all-assignees'] })
+      qc.invalidateQueries({ queryKey: ['activity-log', variables.task_id] })
+      logActivity({
+        task_id: variables.task_id,
+        actor_id: null,
+        action: 'assigned',
+        detail: { member_id: data.member_id },
+      })
     },
   })
 }

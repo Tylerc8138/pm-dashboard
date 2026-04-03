@@ -52,11 +52,12 @@ export function useCalendarData(teamId?: string | null) {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>()
     for (const task of tasks) {
-      const sprint = sprints.find(s => s.id === task.sprint_id)
-      if (!sprint?.end_date) continue
-      const key = sprint.end_date
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(task)
+      // Use task's own due_date if set, otherwise fall back to sprint end_date
+      const dateKey = task.due_date
+        ?? sprints.find(s => s.id === task.sprint_id)?.end_date
+      if (!dateKey) continue
+      if (!map.has(dateKey)) map.set(dateKey, [])
+      map.get(dateKey)!.push(task)
     }
     return map
   }, [tasks, sprints])
