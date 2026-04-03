@@ -8,14 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
 )
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, ''),
-  },
-})
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -30,21 +22,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing subject, body_html, or recipients' })
   }
 
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  const gmailUser = process.env.GMAIL_USER
+  const gmailPass = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, '')
+
+  if (!gmailUser || !gmailPass) {
     return res.status(500).json({ error: 'Gmail credentials not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD env vars.' })
   }
 
-  const results: { email: string; status: string }[] = []
+  // Create transporter fresh each invocation (serverless best practice)
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user: gmailUser, pass: gmailPass },
+  })
+
+  // Verify SMTP connection first
+  try {
+    await transporter.verify()
+  } catch (verifyErr) {
+    return res.status(500).json({
+      error: 'SMTP connection failed',
+      detail: (verifyErr as Error).message,
+      hint: 'Check GMAIL_USER and GMAIL_APP_PASSWORD env vars. Ensure 2-Step Verification is enabled and the app password is correct.',
+    })
+  }
+
+  const results: { email: string; status: string; messageId?: string; response?: string }[] = []
 
   for (const r of recipients) {
     try {
-      await transporter.sendMail({
-        from: `pm-dashboard <${process.env.GMAIL_USER}>`,
-        to: `${r.name} <${r.email}>`,
+      const info = await transporter.sendMail({
+        from: `pm-dashboard <${gmailUser}>`,
+        to: r.email,
         subject,
         html: body_html,
       })
-      results.push({ email: r.email, status: 'sent' })
+      results.push({
+        email: r.email,
+        status: 'sent',
+        messageId: info.messageId,
+        response: info.response,
+      })
     } catch (err) {
       results.push({ email: r.email, status: `error: ${(err as Error).message}` })
     }
