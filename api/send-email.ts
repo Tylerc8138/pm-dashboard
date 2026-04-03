@@ -1,12 +1,6 @@
 /** @purpose API route for PM-triggered email sends via Gmail SMTP */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
-)
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -68,15 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       results.push({ email: r.email, status: `error: ${(err as Error).message}` })
     }
   }
-
-  // Record in email_history
-  await supabase.from('email_history').insert({
-    subject,
-    body_html,
-    sent_by,
-    recipient_count: recipients.length,
-    recipients,
-  } as unknown as Record<string, unknown>)
 
   return res.status(200).json({ success: true, results })
 }

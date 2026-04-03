@@ -104,6 +104,7 @@ export function EmailManager() {
   const [showPreview, setShowPreview] = useState(false)
   const [sendSuccess, setSendSuccess] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
 
   // Recipient state
   const [showAddForm, setShowAddForm] = useState(false)
@@ -345,10 +346,17 @@ export function EmailManager() {
         sent_by: currentMember?.id ?? null,
       })
       setSendSuccess(true)
-      setTimeout(() => setSendSuccess(false), 4000)
     } catch (err) {
       alert(`Failed to send: ${(err as Error).message}`)
     }
+  }
+
+  const handleReturnToCompose = () => {
+    setSendSuccess(false)
+    setDraft('')
+    setSubject('')
+    setHasGenerated(false)
+    setShowPreview(false)
   }
 
   const handleAddRecipient = async () => {
@@ -390,8 +398,32 @@ export function EmailManager() {
           ))}
         </div>
 
+        {/* ===== SEND SUCCESS SCREEN ===== */}
+        {activeTab === 'compose' && sendSuccess && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-6">
+              <Check className="h-10 w-10 text-green-600" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Email Sent!</h2>
+            <p className="text-sm text-muted-foreground mb-1">
+              Your update was delivered to {activeRecipients.length} recipient{activeRecipients.length !== 1 ? 's' : ''}.
+            </p>
+            <p className="text-xs text-muted-foreground mb-8">
+              {activeRecipients.slice(0, 5).map(r => r.name.split(' ')[0]).join(', ')}{activeRecipients.length > 5 ? `, +${activeRecipients.length - 5} more` : ''}
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => { setSendSuccess(false); setActiveTab('history') }} className="gap-1.5">
+                <History className="h-4 w-4" />View in Sent
+              </Button>
+              <Button onClick={handleReturnToCompose} className="gap-1.5">
+                <Send className="h-4 w-4" />Compose Another
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ===== COMPOSE TAB ===== */}
-        {activeTab === 'compose' && !showPreview && (
+        {activeTab === 'compose' && !showPreview && !sendSuccess && (
           <div className="space-y-5">
 
             {/* Sprint selector + auto-generate */}
@@ -498,7 +530,7 @@ export function EmailManager() {
         )}
 
         {/* ===== PREVIEW MODE ===== */}
-        {activeTab === 'compose' && showPreview && (
+        {activeTab === 'compose' && showPreview && !sendSuccess && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)} className="gap-1.5"><ArrowLeft className="h-4 w-4" />Back to Editor</Button>
@@ -589,19 +621,102 @@ export function EmailManager() {
           </div>
         )}
 
-        {/* ===== HISTORY TAB ===== */}
-        {activeTab === 'history' && (
-          <div className="space-y-4">
+        {/* ===== HISTORY TAB (INBOX) ===== */}
+        {activeTab === 'history' && !selectedHistoryId && (
+          <div className="space-y-1">
             {history.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><History className="h-8 w-8 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No emails sent yet.</p></CardContent></Card>
-            ) : history.map(entry => {
-              const sentByMember = entry.sent_by ? members.find(m => m.id === entry.sent_by) : null
-              return (
-                <Card key={entry.id}><CardContent className="p-4"><div className="flex items-start justify-between gap-4"><div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{entry.subject}</p><div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground"><span>{new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><span>·</span><span>{entry.recipient_count} recipient{entry.recipient_count !== 1 ? 's' : ''}</span>{sentByMember && <><span>·</span><span>by {sentByMember.full_name}</span></>}</div></div><Badge variant="secondary" className="gap-1 shrink-0"><Check className="h-3 w-3" />Sent</Badge></div></CardContent></Card>
-              )
-            })}
+              <Card><CardContent className="py-16 text-center">
+                <Mail className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+                <p className="font-medium text-sm mb-1">No emails sent yet</p>
+                <p className="text-xs text-muted-foreground mb-4">Compose and send your first update to see it here.</p>
+                <Button variant="outline" size="sm" onClick={() => setActiveTab('compose')} className="gap-1.5"><Send className="h-3.5 w-3.5" />Compose Email</Button>
+              </CardContent></Card>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  {history.map((entry, i) => {
+                    const sentByMember = entry.sent_by ? members.find(m => m.id === entry.sent_by) : null
+                    const recipientNames = (entry.recipients as { name: string }[])?.map(r => r.name.split(' ')[0]).join(', ') ?? `${entry.recipient_count} people`
+                    const date = new Date(entry.created_at)
+                    const isToday = date.toDateString() === new Date().toDateString()
+                    const timeStr = isToday
+                      ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                      : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${i < history.length - 1 ? 'border-b' : ''}`}
+                        onClick={() => setSelectedHistoryId(entry.id)}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Send className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold truncate">{entry.subject}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            To: {recipientNames}
+                            {sentByMember ? ` · Sent by ${sentByMember.full_name.split(' ')[0]}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-muted-foreground">{timeStr}</p>
+                          <Badge variant="secondary" className="text-[10px] mt-1 gap-0.5"><Check className="h-2.5 w-2.5" />Sent</Badge>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
+
+        {/* ===== HISTORY DETAIL (EMAIL PREVIEW) ===== */}
+        {activeTab === 'history' && selectedHistoryId && (() => {
+          const entry = history.find(h => h.id === selectedHistoryId)
+          if (!entry) return null
+          const sentByMember = entry.sent_by ? members.find(m => m.id === entry.sent_by) : null
+          const recipientList = (entry.recipients as { email: string; name: string }[]) ?? []
+
+          return (
+            <div className="space-y-4">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedHistoryId(null)} className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" />Back to Sent
+              </Button>
+
+              <Card>
+                <CardContent className="p-5 space-y-4">
+                  <div>
+                    <h2 className="text-lg font-bold">{entry.subject}</h2>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <span>{new Date(entry.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                      {sentByMember && <><span>·</span><span>Sent by {sentByMember.full_name}</span></>}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-muted-foreground">To:</span>
+                    {recipientList.map((r, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{r.name} &lt;{r.email}&gt;</Badge>
+                    ))}
+                    {recipientList.length === 0 && <span className="text-xs text-muted-foreground">{entry.recipient_count} recipients</span>}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-1">
+                  <div className="rounded-lg overflow-hidden bg-[#f4f4f5]">
+                    <iframe srcDoc={entry.body_html} className="w-full border-0" style={{ height: '500px' }} title="Sent email" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })()}
 
       </div>
     </div>

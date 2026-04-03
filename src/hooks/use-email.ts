@@ -85,7 +85,7 @@ export function useEmailHistory() {
         .from('email_history')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(50)
       if (error) throw error
       return data as EmailHistoryEntry[]
     },
@@ -96,7 +96,7 @@ export function useSendEmail() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: { subject: string; body_html: string; recipients: { email: string; name: string }[]; sent_by: string | null }) => {
-      // Call our API route to actually send the emails
+      // Send via API route
       const res = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +106,18 @@ export function useSendEmail() {
         const err = await res.json()
         throw new Error(err.error || 'Failed to send email')
       }
-      return res.json()
+      const result = await res.json()
+
+      // Save history from frontend (has auth session, RLS works)
+      await supabase.from('email_history').insert({
+        subject: payload.subject,
+        body_html: payload.body_html,
+        sent_by: payload.sent_by,
+        recipient_count: payload.recipients.length,
+        recipients: payload.recipients,
+      } as unknown as Record<string, unknown>)
+
+      return result
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['email-history'] })
