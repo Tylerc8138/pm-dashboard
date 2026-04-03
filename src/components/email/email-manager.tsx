@@ -1,4 +1,4 @@
-/** @purpose PM Email Command Center — friendly compose UI, recipients, history */
+/** @purpose PM Email Command Center — auto-generate editable drafts from task data, manage recipients, track history */
 import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,74 +12,47 @@ import { useTeams } from '@/hooks/use-teams'
 import { useMembers } from '@/hooks/use-members'
 import { useSprints } from '@/hooks/use-sprints'
 import { useCurrentMember } from '@/hooks/use-current-member'
+import { useAllDependencies } from '@/hooks/use-dependencies'
+import { useAllAssignees } from '@/hooks/use-assignees'
 import { useEmailRecipients, useAddEmailRecipient, useUpdateEmailRecipient, useRemoveEmailRecipient, useEmailHistory, useSendEmail } from '@/hooks/use-email'
-import type { Task } from '@/types/database'
-import { Mail, Send, Users, Plus, History, Eye, UserPlus, ToggleLeft, ToggleRight, Check, Trash2, AlertTriangle, Clock, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { Mail, Send, Users, Plus, History, Eye, Sparkles, UserPlus, ToggleLeft, ToggleRight, Check, Trash2, AlertTriangle, Clock, CheckCircle2, ArrowLeft } from 'lucide-react'
 
 type Tab = 'compose' | 'recipients' | 'history'
 
-// ===== HTML TEMPLATE BUILDER (hidden from PM) =====
-function buildEmailHtml(opts: {
-  personalNote: string
-  sprintName: string
-  includeOverdue: boolean
-  includeBlocked: boolean
-  includeInProgress: boolean
-  includeTodo: boolean
-  includeDone: boolean
-  tasks: Task[]
-  teamMap: Map<string, string>
-}): string {
-  const { personalNote, sprintName, includeOverdue, includeBlocked, includeInProgress, includeTodo, includeDone, tasks, teamMap } = opts
+// ===== Convert plain text draft → styled HTML email =====
+function draftToHtml(_subject: string, draftText: string, _sprintName: string): string {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  const activeTasks = tasks.filter(t => t.status !== 'done')
-  const overdue = activeTasks.filter(t => t.due_date && new Date(t.due_date) < new Date())
-  const blocked = activeTasks.filter(t => t.is_blocked)
-  const inProgress = activeTasks.filter(t => t.status === 'in_progress')
-  const todo = activeTasks.filter(t => t.status === 'todo')
-  const done = tasks.filter(t => t.status === 'done')
 
-  const taskRow = (t: Task, extraColor?: string) => {
-    const team = teamMap.get(t.team_id) ?? ''
-    const due = t.due_date ? new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
-    const pColor = t.priority === 'high' ? '#dc2626' : t.priority === 'medium' ? '#d97706' : '#71717a'
-    return `<tr>
-      <td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;">${t.title}</td>
-      <td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#71717a;">${team}</td>
-      <td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:12px;color:${extraColor ?? pColor};font-weight:500;">${due || t.priority}</td>
-    </tr>`
-  }
+  // Convert plain text to HTML paragraphs, preserving structure
+  const bodyHtml = draftText
+    .split('\n\n')
+    .map(block => {
+      const trimmed = block.trim()
+      if (!trimmed) return ''
 
-  const section = (title: string, items: Task[], borderColor: string, titleColor: string, extra?: string) => {
-    if (items.length === 0) return ''
-    return `<p style="font-size:13px;font-weight:600;color:${titleColor};margin:20px 0 8px;">${title}</p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${borderColor};border-radius:8px;border-collapse:separate;overflow:hidden;margin-bottom:4px;">
-    ${items.map(t => taskRow(t, extra)).join('')}
-    </table>`
-  }
+      // Headers (lines starting with ## or all-caps short lines)
+      if (trimmed.startsWith('## ')) {
+        return `<p style="font-size:14px;font-weight:700;color:#09090b;margin:24px 0 8px;border-bottom:1px solid #e4e4e7;padding-bottom:6px;">${trimmed.slice(3)}</p>`
+      }
 
-  // Group in-progress by team
-  const teamGroups = new Map<string, Task[]>()
-  for (const t of inProgress) {
-    const name = teamMap.get(t.team_id) ?? 'Other'
-    if (!teamGroups.has(name)) teamGroups.set(name, [])
-    teamGroups.get(name)!.push(t)
-  }
+      // Bullet lists
+      if (trimmed.split('\n').every(line => line.trim().startsWith('- ') || line.trim().startsWith('• '))) {
+        const items = trimmed.split('\n').map(line => {
+          const text = line.trim().replace(/^[-•]\s*/, '')
+          // Highlight overdue/blocked keywords
+          const styled = text
+            .replace(/\(overdue\)/gi, '<span style="color:#dc2626;font-weight:600;">(overdue)</span>')
+            .replace(/\(blocked\)/gi, '<span style="color:#d97706;font-weight:600;">(blocked)</span>')
+            .replace(/\(high priority\)/gi, '<span style="color:#dc2626;font-weight:600;">(high priority)</span>')
+          return `<li style="margin-bottom:4px;">${styled}</li>`
+        }).join('')
+        return `<ul style="margin:0 0 12px;padding-left:20px;font-size:13px;color:#3f3f46;line-height:1.7;">${items}</ul>`
+      }
 
-  const inProgressSection = includeInProgress && inProgress.length > 0 ? `
-    <p style="font-size:13px;font-weight:600;color:#09090b;margin:20px 0 8px;">In Progress by Team</p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e4e7;border-radius:8px;border-collapse:separate;overflow:hidden;margin-bottom:4px;">
-    <tr style="background:#f9fafb;"><th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e4e4e7;">Task</th><th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e4e4e7;">Team</th><th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e4e4e7;">Priority</th></tr>
-    ${[...teamGroups.entries()].map(([teamName, tTasks]) =>
-      `<tr><td style="padding:10px 16px;background:#f9fafb;font-weight:600;font-size:12px;color:#09090b;border-bottom:1px solid #e4e4e7;" colspan="3">${teamName}</td></tr>` +
-      tTasks.map(t => taskRow(t)).join('')
-    ).join('')}
-    </table>` : ''
-
-  const noteHtml = personalNote.trim() ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin-bottom:20px;">
-    <p style="font-size:12px;font-weight:600;color:#0284c7;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Note from PM</p>
-    <p style="font-size:14px;color:#09090b;margin:0;line-height:1.6;white-space:pre-wrap;">${personalNote.trim()}</p>
-  </div>` : ''
+      // Regular paragraphs
+      return `<p style="font-size:14px;color:#3f3f46;margin:0 0 12px;line-height:1.7;">${trimmed.replace(/\n/g, '<br>')}</p>`
+    })
+    .join('')
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
@@ -94,29 +67,10 @@ function buildEmailHtml(opts: {
 </div>
 
 <div style="background:#ffffff;padding:28px;border:1px solid #e4e4e7;border-top:none;">
-
-<p style="font-size:16px;margin:0 0 4px;"><strong>Team Update</strong></p>
-<p style="font-size:14px;color:#71717a;margin:0 0 20px;">Here's where we stand today.${sprintName ? ` Currently in ${sprintName}.` : ''}</p>
-
-<div style="margin-bottom:20px;">
-  <span style="display:inline-block;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;margin:0 6px 6px 0;">${done.length} done</span>
-  <span style="display:inline-block;background:#eff6ff;color:#2563eb;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;margin:0 6px 6px 0;">${inProgress.length} in progress</span>
-  <span style="display:inline-block;background:#f4f4f5;color:#71717a;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;margin:0 6px 6px 0;">${todo.length} to do</span>
-  ${overdue.length > 0 ? `<span style="display:inline-block;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;margin:0 6px 6px 0;">${overdue.length} overdue</span>` : ''}
-  ${blocked.length > 0 ? `<span style="display:inline-block;background:#fffbeb;color:#d97706;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;margin:0 6px 6px 0;">${blocked.length} blocked</span>` : ''}
-</div>
-
-${noteHtml}
-${includeOverdue ? section('Needs Attention — Overdue', overdue, '#fecaca', '#dc2626', '#dc2626') : ''}
-${includeBlocked ? section('Blocked', blocked, '#fde68a', '#d97706', '#d97706') : ''}
-${inProgressSection}
-${includeTodo ? section('To Do', todo, '#e4e4e7', '#71717a') : ''}
-${includeDone ? section('Recently Completed', done.slice(0, 10), '#bbf7d0', '#16a34a', '#16a34a') : ''}
-
+${bodyHtml}
 <div style="text-align:center;margin:28px 0 0;">
   <a href="https://pm-dashboard-nine-nu.vercel.app" style="display:inline-block;background:#1a56db;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">Open Dashboard</a>
 </div>
-
 </div>
 
 <div style="background:#f9fafb;border-radius:0 0 12px 12px;border:1px solid #e4e4e7;border-top:none;padding:16px 28px;text-align:center;">
@@ -134,6 +88,8 @@ export function EmailManager() {
   const { data: members = [] } = useMembers()
   const { data: sprints = [] } = useSprints()
   const { data: currentMember } = useCurrentMember()
+  const { data: allDeps = [] } = useAllDependencies()
+  const { data: allAssignees = [] } = useAllAssignees()
   const { data: recipients = [] } = useEmailRecipients()
   const { data: history = [] } = useEmailHistory()
   const addRecipient = useAddEmailRecipient()
@@ -141,34 +97,31 @@ export function EmailManager() {
   const removeRecipient = useRemoveEmailRecipient()
   const sendEmail = useSendEmail()
 
-  // Compose state — PM-friendly fields
+  // Compose state
   const [subject, setSubject] = useState('')
-  const [personalNote, setPersonalNote] = useState('')
+  const [draft, setDraft] = useState('')
   const [selectedSprintId, setSelectedSprintId] = useState<string>('')
-  const [includeOverdue, setIncludeOverdue] = useState(true)
-  const [includeBlocked, setIncludeBlocked] = useState(true)
-  const [includeInProgress, setIncludeInProgress] = useState(true)
-  const [includeTodo, setIncludeTodo] = useState(false)
-  const [includeDone, setIncludeDone] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [sendSuccess, setSendSuccess] = useState(false)
+  const [hasGenerated, setHasGenerated] = useState(false)
 
-  // Add recipient state
+  // Recipient state
   const [showAddForm, setShowAddForm] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
   const [newTeamId, setNewTeamId] = useState('')
 
   const teamMap = useMemo(() => new Map(teams.map(t => [t.id, t.name])), [teams])
+  const memberMap = useMemo(() => new Map(members.map(m => [m.id, m])), [members])
   const activeRecipients = recipients.filter(r => r.is_active)
 
-  // Filtered tasks by sprint
   const filteredTasks = useMemo(() =>
     selectedSprintId ? tasks.filter(t => t.sprint_id === selectedSprintId) : tasks,
     [tasks, selectedSprintId]
   )
 
-  // Stats for the compose view
+  const selectedSprint = sprints.find(s => s.id === selectedSprintId)
+
   const stats = useMemo(() => {
     const t = filteredTasks
     return {
@@ -181,8 +134,6 @@ export function EmailManager() {
     }
   }, [filteredTasks])
 
-  const selectedSprint = sprints.find(s => s.id === selectedSprintId)
-
   // Auto-set current sprint
   useEffect(() => {
     if (!selectedSprintId && sprints.length > 0) {
@@ -191,32 +142,134 @@ export function EmailManager() {
     }
   }, [sprints, selectedSprintId])
 
-  // Auto-generate subject when sprint changes
-  useEffect(() => {
-    if (stats.overdue > 0) {
-      setSubject(`Daily Update — ${stats.overdue} overdue items need attention`)
-    } else if (selectedSprint) {
-      setSubject(`Daily Update — ${selectedSprint.name} Progress`)
-    } else {
-      setSubject(`Daily Update — ${stats.inProgress} tasks in progress`)
-    }
-  }, [stats, selectedSprint])
+  // ===== AUTO-GENERATE DRAFT =====
+  const generateDraft = () => {
+    const activeTasks = filteredTasks.filter(t => t.status !== 'done')
+    const overdue = activeTasks.filter(t => t.due_date && new Date(t.due_date) < new Date())
+    const blocked = activeTasks.filter(t => t.is_blocked)
+    const inProgress = activeTasks.filter(t => t.status === 'in_progress')
+    const todo = activeTasks.filter(t => t.status === 'todo')
+    const done = filteredTasks.filter(t => t.status === 'done')
 
-  // Build HTML from PM inputs
-  const generatedHtml = useMemo(() => buildEmailHtml({
-    personalNote,
-    sprintName: selectedSprint?.name ?? '',
-    includeOverdue,
-    includeBlocked,
-    includeInProgress,
-    includeTodo,
-    includeDone,
-    tasks: filteredTasks,
-    teamMap,
-  }), [personalNote, selectedSprint, includeOverdue, includeBlocked, includeInProgress, includeTodo, includeDone, filteredTasks, teamMap])
+    // Build assignee lookup: task_id → member names
+    const taskAssignees = new Map<string, string[]>()
+    for (const a of allAssignees) {
+      const m = memberMap.get(a.member_id)
+      if (m) {
+        if (!taskAssignees.has(a.task_id)) taskAssignees.set(a.task_id, [])
+        taskAssignees.get(a.task_id)!.push(m.full_name.split(' ')[0])
+      }
+    }
+
+    // Build dependency info: task_id → what it's waiting on
+    const taskDepsMap = new Map<string, string[]>()
+    for (const dep of allDeps) {
+      const blockingTask = filteredTasks.find(t => t.id === dep.blocking_task_id)
+      if (blockingTask && blockingTask.status !== 'done') {
+        if (!taskDepsMap.has(dep.waiting_task_id)) taskDepsMap.set(dep.waiting_task_id, [])
+        taskDepsMap.get(dep.waiting_task_id)!.push(blockingTask.title)
+      }
+    }
+
+    // Group in-progress by team
+    const teamGroups = new Map<string, typeof inProgress>()
+    for (const t of inProgress) {
+      const name = teamMap.get(t.team_id) ?? 'Other'
+      if (!teamGroups.has(name)) teamGroups.set(name, [])
+      teamGroups.get(name)!.push(t)
+    }
+
+    const formatTask = (t: typeof activeTasks[0]) => {
+      const assignees = taskAssignees.get(t.id)
+      const deps = taskDepsMap.get(t.id)
+      const parts = [t.title]
+      if (assignees?.length) parts.push(`→ ${assignees.join(', ')}`)
+      if (t.due_date) {
+        const isOverdue = new Date(t.due_date) < new Date()
+        parts.push(isOverdue ? '(overdue)' : `due ${new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
+      }
+      if (t.priority === 'high') parts.push('(high priority)')
+      if (deps?.length) parts.push(`— waiting on: ${deps.join(', ')}`)
+      return `- ${parts.join(' ')}`
+    }
+
+    // Build the draft
+    const lines: string[] = []
+
+    lines.push(`Hey team,`)
+    lines.push('')
+    lines.push(`Here's where we stand${selectedSprint ? ` on ${selectedSprint.name}` : ' today'}. We have ${done.length} tasks done, ${inProgress.length} in progress, and ${todo.length} in the backlog.`)
+
+    if (overdue.length > 0) {
+      lines.push('')
+      lines.push(`## Needs Attention — ${overdue.length} Overdue`)
+      lines.push('')
+      for (const t of overdue) lines.push(formatTask(t))
+    }
+
+    if (blocked.length > 0) {
+      lines.push('')
+      lines.push(`## Blocked — ${blocked.length} Items`)
+      lines.push('')
+      for (const t of blocked) {
+        const reason = t.blocked_reason ? ` — ${t.blocked_reason}` : ''
+        lines.push(`- ${t.title} (${teamMap.get(t.team_id) ?? 'Unknown'})${reason}`)
+      }
+    }
+
+    if (teamGroups.size > 0) {
+      lines.push('')
+      lines.push(`## In Progress by Team`)
+      for (const [teamName, tTasks] of teamGroups) {
+        lines.push('')
+        lines.push(`${teamName}:`)
+        for (const t of tTasks) lines.push(formatTask(t))
+      }
+    }
+
+    // Cross-team dependencies
+    const crossTeamDeps = allDeps.filter(d => {
+      const blocking = filteredTasks.find(t => t.id === d.blocking_task_id)
+      const waiting = filteredTasks.find(t => t.id === d.waiting_task_id)
+      return blocking && waiting && blocking.team_id !== waiting.team_id && blocking.status !== 'done'
+    })
+
+    if (crossTeamDeps.length > 0) {
+      lines.push('')
+      lines.push(`## Cross-Team Dependencies`)
+      lines.push('')
+      for (const dep of crossTeamDeps) {
+        const blocking = filteredTasks.find(t => t.id === dep.blocking_task_id)!
+        const waiting = filteredTasks.find(t => t.id === dep.waiting_task_id)!
+        lines.push(`- "${blocking.title}" (${teamMap.get(blocking.team_id)}) blocks "${waiting.title}" (${teamMap.get(waiting.team_id)})`)
+      }
+    }
+
+    if (todo.length > 0 && todo.length <= 8) {
+      lines.push('')
+      lines.push(`## Up Next`)
+      lines.push('')
+      for (const t of todo.slice(0, 8)) lines.push(formatTask(t))
+    }
+
+    lines.push('')
+    lines.push(`Let me know if anything needs to shift. Check the dashboard for the full picture.`)
+
+    // Set subject
+    if (overdue.length > 0) {
+      setSubject(`${selectedSprint?.name ?? 'Project'} Update — ${overdue.length} overdue items need attention`)
+    } else {
+      setSubject(`${selectedSprint?.name ?? 'Daily'} Update — ${stats.inProgress} in progress, ${stats.done} done`)
+    }
+
+    setDraft(lines.join('\n'))
+    setHasGenerated(true)
+  }
+
+  const generatedHtml = useMemo(() => draftToHtml(subject, draft, selectedSprint?.name ?? ''), [subject, draft, selectedSprint])
 
   const handleSend = async () => {
-    if (!subject || activeRecipients.length === 0) return
+    if (!subject || !draft.trim() || activeRecipients.length === 0) return
     try {
       await sendEmail.mutateAsync({
         subject,
@@ -245,7 +298,6 @@ export function EmailManager() {
     }
   }
 
-  // ===== RENDER =====
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl p-6 pb-12 space-y-6">
@@ -275,23 +327,29 @@ export function EmailManager() {
         {activeTab === 'compose' && !showPreview && (
           <div className="space-y-5">
 
-            {/* Sprint selector + stats */}
+            {/* Sprint selector + auto-generate */}
             <Card>
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="font-semibold">Sprint</Label>
-                  <Select value={selectedSprintId || 'all'} onValueChange={(v: string | null) => setSelectedSprintId(!v || v === 'all' ? '' : v)}>
-                    <SelectTrigger className="w-[220px]">
-                      <span>{selectedSprint ? `Sprint ${selectedSprint.number}: ${selectedSprint.name}` : 'All Sprints'}</span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sprints</SelectItem>
-                      {sprints.map(s => <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-1">
+                    <Label className="font-semibold">Sprint</Label>
+                    <Select value={selectedSprintId || 'all'} onValueChange={(v: string | null) => setSelectedSprintId(!v || v === 'all' ? '' : v)}>
+                      <SelectTrigger className="w-[240px]">
+                        <span>{selectedSprint ? `Sprint ${selectedSprint.number}: ${selectedSprint.name}` : 'All Sprints'}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Sprints</SelectItem>
+                        {sprints.map(s => <SelectItem key={s.id} value={s.id}>Sprint {s.number}: {s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={generateDraft} className="gap-1.5">
+                    <Sparkles className="h-4 w-4" />
+                    {hasGenerated ? 'Regenerate Draft' : 'Auto-Generate Draft'}
+                  </Button>
                 </div>
 
-                {/* Live stats from selected sprint */}
+                {/* Live stats */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {stats.overdue > 0 && <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700"><AlertTriangle className="h-3 w-3" />{stats.overdue} overdue</Badge>}
                   {stats.blocked > 0 && <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-700"><Clock className="h-3 w-3" />{stats.blocked} blocked</Badge>}
@@ -305,70 +363,70 @@ export function EmailManager() {
             {/* Subject */}
             <div className="space-y-2">
               <Label htmlFor="email-subject">Subject Line</Label>
-              <Input id="email-subject" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Daily Update — Sprint 3 Progress" />
-              <p className="text-xs text-muted-foreground">Auto-generated from task data. Edit to customize.</p>
+              <Input id="email-subject" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Click 'Auto-Generate Draft' to populate, or type your own" />
             </div>
 
-            {/* Personal note */}
+            {/* Draft editor */}
             <div className="space-y-2">
-              <Label htmlFor="personal-note">Personal Note <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Textarea
-                id="personal-note"
-                value={personalNote}
-                onChange={e => setPersonalNote(e.target.value)}
-                placeholder="Add context for your team... e.g. 'Great progress this week. Let's focus on clearing the 2 blocked items before EOD.'"
-                rows={3}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">This appears as a highlighted note at the top of the email.</p>
-            </div>
-
-            {/* Section toggles */}
-            <div className="space-y-3">
-              <Label>Include in Email</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { label: 'Overdue tasks', value: includeOverdue, set: setIncludeOverdue, count: stats.overdue, color: 'text-red-600' },
-                  { label: 'Blocked tasks', value: includeBlocked, set: setIncludeBlocked, count: stats.blocked, color: 'text-amber-600' },
-                  { label: 'In progress (by team)', value: includeInProgress, set: setIncludeInProgress, count: stats.inProgress, color: 'text-blue-600' },
-                  { label: 'To do', value: includeTodo, set: setIncludeTodo, count: stats.todo, color: 'text-muted-foreground' },
-                  { label: 'Recently completed', value: includeDone, set: setIncludeDone, count: stats.done, color: 'text-green-600' },
-                ].map(toggle => (
-                  <label key={toggle.label} className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={toggle.value}
-                      onChange={e => toggle.set(e.target.checked)}
-                      className="rounded accent-primary"
-                    />
-                    <span className="text-sm flex-1">{toggle.label}</span>
-                    <span className={`text-xs font-semibold ${toggle.color}`}>{toggle.count}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email-draft">Email Body</Label>
+                {draft.trim() && (
+                  <Button variant="ghost" size="sm" onClick={() => setShowPreview(true)} className="gap-1 text-xs">
+                    <Eye className="h-3 w-3" />Preview Styled Email
+                  </Button>
+                )}
               </div>
+              {!hasGenerated && !draft.trim() ? (
+                <Card>
+                  <CardContent className="py-16 text-center">
+                    <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                    <p className="font-medium text-sm mb-1">Generate your email from task data</p>
+                    <p className="text-xs text-muted-foreground mb-4 max-w-sm mx-auto">
+                      Select a sprint above and click "Auto-Generate Draft". It'll pull in tasks, assignments, dependencies, and blockers into a ready-to-edit email.
+                    </p>
+                    <Button onClick={generateDraft} className="gap-1.5">
+                      <Sparkles className="h-4 w-4" />Auto-Generate Draft
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Textarea
+                  id="email-draft"
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  placeholder="Write your email here..."
+                  className="min-h-[400px] text-sm leading-relaxed"
+                  rows={20}
+                />
+              )}
+              {hasGenerated && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-generated from {stats.total} tasks. Edit freely — lines starting with "## " become section headers, lines starting with "- " become bullet points.
+                </p>
+              )}
             </div>
 
-            {/* Preview + Send bar */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={() => setShowPreview(true)} className="gap-1.5">
-                      <Eye className="h-4 w-4" />Preview Email
-                    </Button>
+            {/* Send bar */}
+            {draft.trim() && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
                       Sending to <strong className="text-foreground">{activeRecipients.length}</strong> recipient{activeRecipients.length !== 1 ? 's' : ''}
+                      {activeRecipients.length > 0 && (
+                        <span className="ml-1 text-xs">({activeRecipients.slice(0, 4).map(r => r.name.split(' ')[0]).join(', ')}{activeRecipients.length > 4 ? `, +${activeRecipients.length - 4}` : ''})</span>
+                      )}
                     </span>
+                    <div className="flex items-center gap-2">
+                      {sendSuccess && <span className="text-sm text-green-600 flex items-center gap-1"><Check className="h-4 w-4" />Sent!</span>}
+                      <Button onClick={handleSend} disabled={!subject || !draft.trim() || activeRecipients.length === 0 || sendEmail.isPending} className="gap-1.5">
+                        <Send className="h-4 w-4" />{sendEmail.isPending ? 'Sending...' : 'Send Email'}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {sendSuccess && <span className="text-sm text-green-600 flex items-center gap-1"><Check className="h-4 w-4" />Sent!</span>}
-                    <Button onClick={handleSend} disabled={!subject || activeRecipients.length === 0 || sendEmail.isPending} className="gap-1.5">
-                      <Send className="h-4 w-4" />{sendEmail.isPending ? 'Sending...' : 'Send Email'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -376,17 +434,14 @@ export function EmailManager() {
         {activeTab === 'compose' && showPreview && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)} className="gap-1.5">
-                <ArrowLeft className="h-4 w-4" />Back to Editor
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)} className="gap-1.5"><ArrowLeft className="h-4 w-4" />Back to Editor</Button>
               <div className="flex items-center gap-2">
                 {sendSuccess && <span className="text-sm text-green-600 flex items-center gap-1"><Check className="h-4 w-4" />Sent!</span>}
-                <Button onClick={handleSend} disabled={!subject || activeRecipients.length === 0 || sendEmail.isPending} className="gap-1.5">
-                  <Send className="h-4 w-4" />{sendEmail.isPending ? 'Sending...' : 'Send to {activeRecipients.length} people'}
+                <Button onClick={handleSend} disabled={!subject || !draft.trim() || activeRecipients.length === 0 || sendEmail.isPending} className="gap-1.5">
+                  <Send className="h-4 w-4" />{sendEmail.isPending ? 'Sending...' : `Send to ${activeRecipients.length} people`}
                 </Button>
               </div>
             </div>
-
             <Card>
               <CardContent className="p-1">
                 <div className="rounded-lg overflow-hidden bg-[#f4f4f5]">
@@ -471,7 +526,7 @@ export function EmailManager() {
         {activeTab === 'history' && (
           <div className="space-y-4">
             {history.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><History className="h-8 w-8 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No emails sent yet.</p><p className="text-xs text-muted-foreground mt-1">Compose and send your first update.</p></CardContent></Card>
+              <Card><CardContent className="py-12 text-center"><History className="h-8 w-8 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No emails sent yet.</p></CardContent></Card>
             ) : history.map(entry => {
               const sentByMember = entry.sent_by ? members.find(m => m.id === entry.sent_by) : null
               return (
