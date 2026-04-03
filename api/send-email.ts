@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   for (const r of recipients) {
     try {
       await resend.emails.send({
-        from: 'pm-dashboard <digest@updates.visa.com>',
+        from: process.env.EMAIL_FROM || 'pm-dashboard <onboarding@resend.dev>',
         to: r.email,
         subject,
         html: body_html,

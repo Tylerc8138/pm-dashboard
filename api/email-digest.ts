@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       try {
         await resend.emails.send({
-          from: 'pm-dashboard <digest@updates.visa.com>',
+          from: process.env.EMAIL_FROM || 'pm-dashboard <onboarding@resend.dev>',
           to: member.email,
           subject: `${member.full_name.split(' ')[0]}, here's your daily update — ${overdue.length > 0 ? `${overdue.length} overdue` : `${myTasks.length} active tasks`}`,
           html,
