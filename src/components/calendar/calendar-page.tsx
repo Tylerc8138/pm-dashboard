@@ -5,8 +5,14 @@ import { GanttChart, CalendarDays } from 'lucide-react'
 import { useTeams } from '@/hooks/use-teams'
 import { TimelineView } from './timeline/timeline-view'
 import { MonthCalendarView } from './month-calendar/month-calendar-view'
+import type { Task, TaskStatus } from '@/types/database'
 
-export function CalendarPage() {
+interface CalendarPageProps {
+  onEditTask?: (task: Task) => void
+  onNewTask?: (status: TaskStatus, dueDate?: string) => void
+}
+
+export function CalendarPage({ onEditTask, onNewTask }: CalendarPageProps) {
   const [subView, setSubView] = useState<'timeline' | 'month'>('timeline')
   const [teamId, setTeamId] = useState<string | null>(null)
   const { data: teams } = useTeams()
@@ -58,9 +64,9 @@ export function CalendarPage() {
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {subView === 'timeline' ? (
-          <TimelineView teamId={teamId} />
+          <TimelineView teamId={teamId} onEditTask={onEditTask} onNewTask={onNewTask} />
         ) : (
-          <MonthCalendarView teamId={teamId} />
+          <MonthCalendarView teamId={teamId} onEditTask={onEditTask} onNewTask={onNewTask} />
         )}
       </div>
     </div>

@@ -88,3 +88,8 @@ export function addMonths(date: Date, n: number): Date {
 export function parseDate(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00')
 }
+
+export function xToDate(x: number, startDate: Date, dayWidth: number): Date {
+  const days = Math.round(x / dayWidth)
+  return new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + days)
+}

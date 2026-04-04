@@ -12,7 +12,7 @@ export interface SprintWithTasks extends Sprint {
   hasBlocked: boolean
 }
 
-export function useCalendarData(teamId?: string | null) {
+export function useCalendarData(teamId?: string | null, year?: number) {
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints()
   const { data: allTasks = [], isLoading: tasksLoading } = useTasks()
   const { data: teams = [], isLoading: teamsLoading } = useTeams()
@@ -63,6 +63,14 @@ export function useCalendarData(teamId?: string | null) {
   }, [tasks, sprints])
 
   const dateRange = useMemo(() => {
+    // If year is provided, show full year
+    if (year) {
+      return {
+        start: new Date(year, 0, 1),
+        end: new Date(year, 11, 31),
+      }
+    }
+
     const dated = sprintsWithTasks
     if (dated.length === 0) return null
 
@@ -74,7 +82,7 @@ export function useCalendarData(teamId?: string | null) {
       start: new Date(Math.min(...starts) - padding),
       end: new Date(Math.max(...ends) + padding),
     }
-  }, [sprintsWithTasks])
+  }, [sprintsWithTasks, year])
 
   return {
     sprintsWithTasks,

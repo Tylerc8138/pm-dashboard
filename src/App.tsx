@@ -31,6 +31,7 @@ function Dashboard() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('todo')
+  const [defaultDueDate, setDefaultDueDate] = useState<string | undefined>(undefined)
   const [sprintManagerOpen, setSprintManagerOpen] = useState(false)
 
   // Set default view once we know the user's role
@@ -47,9 +48,10 @@ function Dashboard() {
     setDialogOpen(true)
   }
 
-  const handleNewTask = (status: TaskStatus) => {
+  const handleNewTask = (status: TaskStatus, dueDate?: string) => {
     setEditingTask(null)
     setDefaultStatus(status)
+    setDefaultDueDate(dueDate)
     setDialogOpen(true)
   }
 
@@ -79,7 +81,7 @@ function Dashboard() {
           ) : view === 'alltasks' ? (
             <AllTasksPage onEditTask={handleEditTask} onNewTask={handleNewTask} />
           ) : view === 'calendar' ? (
-            <CalendarPage />
+            <CalendarPage onEditTask={handleEditTask} onNewTask={handleNewTask} />
           ) : view === 'email' ? (
             <EmailManager />
           ) : (
@@ -91,6 +93,7 @@ function Dashboard() {
           onClose={handleCloseDialog}
           task={editingTask}
           defaultStatus={defaultStatus}
+          defaultDueDate={defaultDueDate}
         />
         <SprintManager
           open={sprintManagerOpen}

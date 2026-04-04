@@ -1,8 +1,14 @@
-import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { useCalendarData } from '@/hooks/use-calendar-data'
-import { daysBetween, dateToX } from '@/lib/date-utils'
+import { useUpdateSprint } from '@/hooks/use-sprints'
+import { useUpdateTask } from '@/hooks/use-tasks'
+import { useCurrentMember } from '@/hooks/use-current-member'
+import { daysBetween, dateToX, xToDate, formatDateKey } from '@/lib/date-utils'
 import { TimelineHeader } from './timeline-header'
 import { TimelineRow } from './timeline-row'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import type { Task, TaskStatus } from '@/types/database'
 
 const HEADER_HEIGHT = 56
 const ROW_HEIGHT = 80
@@ -11,12 +17,29 @@ const LABEL_WIDTH = 200
 
 interface TimelineViewProps {
   teamId?: string | null
+  onEditTask?: (task: Task) => void
+  onNewTask?: (status: TaskStatus, dueDate?: string) => void
 }
 
-export function TimelineView({ teamId }: TimelineViewProps) {
-  const { sprintsWithTasks, dateRange, teamMap, isLoading } = useCalendarData(teamId)
+export function TimelineView({ teamId, onEditTask, onNewTask }: TimelineViewProps) {
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
+  const { sprintsWithTasks, dateRange, teamMap, isLoading } = useCalendarData(teamId, selectedYear)
   const scrollRef = useRef<HTMLDivElement>(null)
   const labelRef = useRef<HTMLDivElement>(null)
+  const updateSprint = useUpdateSprint()
+  const updateTask = useUpdateTask()
+  const { data: currentMember } = useCurrentMember()
+
+  const handleSprintResize = useCallback((sprintId: string, field: 'start_date' | 'end_date', newDate: string) => {
+    updateSprint.mutate({ id: sprintId, [field]: newDate })
+  }, [updateSprint])
+
+  const handleTaskReschedule = useCallback((taskId: string, newDueDate: string) => {
+    const task = sprintsWithTasks.flatMap(s => s.tasks).find(t => t.id === taskId)
+    if (task) {
+      updateTask.mutate({ update: { id: taskId, due_date: newDueDate }, previousTask: task, actorId: currentMember?.id })
+    }
+  }, [sprintsWithTasks, updateTask, currentMember])
 
   const handleScroll = useCallback(() => {
     if (scrollRef.current && labelRef.current) {
@@ -58,7 +81,22 @@ export function TimelineView({ teamId }: TimelineViewProps) {
   const todayVisible = todayX >= 0 && todayX <= totalWidth
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-full flex-col bg-background">
+      {/* Year navigation */}
+      <div className="flex items-center justify-center gap-3 px-4 py-2 border-b bg-muted/20 shrink-0">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedYear(y => y - 1)}>
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <span className="text-sm font-semibold w-12 text-center">{selectedYear}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedYear(y => y + 1)}>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="outline" size="sm" className="text-xs h-7 ml-2" onClick={() => setSelectedYear(new Date().getFullYear())}>
+          This Year
+        </Button>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
       {/* Fixed sprint label column */}
       <div
         ref={labelRef}
@@ -98,7 +136,20 @@ export function TimelineView({ teamId }: TimelineViewProps) {
         className="flex-1 overflow-auto"
         onScroll={handleScroll}
       >
-        <svg width={totalWidth} height={totalHeight} className="block">
+        <svg
+          width={totalWidth}
+          height={totalHeight}
+          className="block"
+          onDoubleClick={(e) => {
+            if (!onNewTask || !dateRange) return
+            const svg = e.currentTarget
+            const pt = svg.createSVGPoint()
+            pt.x = e.clientX; pt.y = e.clientY
+            const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse())
+            const clickDate = xToDate(svgPt.x, dateRange.start, DAY_WIDTH)
+            onNewTask('todo', formatDateKey(clickDate))
+          }}
+        >
           <TimelineHeader
             startDate={dateRange.start}
             endDate={dateRange.end}
@@ -155,6 +206,9 @@ export function TimelineView({ teamId }: TimelineViewProps) {
               yPosition={HEADER_HEIGHT + i * ROW_HEIGHT}
               rowHeight={ROW_HEIGHT}
               teamMap={teamMap}
+              onTaskClick={onEditTask}
+              onSprintResize={handleSprintResize}
+              onTaskReschedule={handleTaskReschedule}
             />
           ))}
 
@@ -174,6 +228,7 @@ export function TimelineView({ teamId }: TimelineViewProps) {
             </g>
           )}
         </svg>
+      </div>
       </div>
     </div>
   )

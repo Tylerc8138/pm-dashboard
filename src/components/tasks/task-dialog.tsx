@@ -32,9 +32,10 @@ interface TaskDialogProps {
   onClose: () => void
   task?: Task | null
   defaultStatus?: TaskStatus
+  defaultDueDate?: string
 }
 
-export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogProps) {
+export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate }: TaskDialogProps) {
   const isEdit = !!task
   const { data: teams } = useTeams()
   const { data: members } = useMembers()
@@ -101,13 +102,13 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
       setTitle(''); setDescription(''); setStatus(defaultStatus ?? 'todo')
       setPriority('medium'); setSprintId(sprints?.[0]?.id ?? '')
       setTeamId(teams?.[0]?.id ?? ''); setIsBlocked(false); setBlockedReason('')
-      setDueDate('')
+      setDueDate(defaultDueDate ?? '')
     }
     setConfirmDelete(false); setShowRefForm(false); setShowImageForm(false)
     setRefLabel(''); setRefUrl(''); setImageLabel(''); setImageFile(null); setImagePreview(null)
     setShowAssigneeForm(false); setNewAssigneeMemberId(''); setNewAssigneeDesc('')
     setShowDepForm(false); setDepTaskId('')
-  }, [task, open, defaultStatus, sprints, teams])
+  }, [task, open, defaultStatus, defaultDueDate, sprints, teams])
 
   const sprintLabel = sprints?.find((s) => s.id === sprintId)
     ? `Sprint ${sprints.find((s) => s.id === sprintId)!.number}: ${sprints.find((s) => s.id === sprintId)!.name}`
