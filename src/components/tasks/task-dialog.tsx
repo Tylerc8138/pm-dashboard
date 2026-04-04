@@ -257,7 +257,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
     <Dialog open={open} onOpenChange={(o) => { if (!o) { setCreatedTask(null); onClose() } }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{createdTask ? 'Task Created — Add Details' : isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -330,7 +330,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           </div>
 
           {/* Assignees Section */}
-          {isEdit && (
+          {(
             <>
               <Separator />
               <div className="space-y-3">
@@ -414,7 +414,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}
 
           {/* Dependencies Section */}
-          {isEdit && (
+          {(
             <>
               <Separator />
               <div className="space-y-3">
@@ -502,7 +502,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}
 
           {/* References Section */}
-          {isEdit && (
+          {(
             <>
               <Separator />
               <div className="space-y-3">
@@ -582,7 +582,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}
 
           {/* Activity & Comments Section */}
-          {isEdit && effectiveTask && (
+          {effectiveTask && (
             <TaskActivity taskId={effectiveTask.id} currentMemberId={currentMember?.id ?? null} />
           )}
         </div>
@@ -593,7 +593,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}</div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!title.trim()}>{createdTask ? 'Save & Close' : isEdit ? 'Save Changes' : 'Create Task'}</Button>
+            <Button onClick={handleSave} disabled={!title.trim()}>{isEdit ? 'Save Changes' : 'Create Task'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
