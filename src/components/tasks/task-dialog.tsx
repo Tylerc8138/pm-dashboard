@@ -36,7 +36,9 @@ interface TaskDialogProps {
 }
 
 export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate }: TaskDialogProps) {
-  const isEdit = !!task
+  const [createdTask, setCreatedTask] = useState<Task | null>(null)
+  const effectiveTask = task ?? createdTask
+  const isEdit = !!effectiveTask
   const { data: teams } = useTeams()
   const { data: members } = useMembers()
   const { data: sprints } = useSprints()
@@ -45,16 +47,16 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
 
-  const { data: references = [] } = useReferences(task?.id ?? null)
+  const { data: references = [] } = useReferences(effectiveTask?.id ?? null)
   const createReference = useCreateReference()
   const deleteReference = useDeleteReference()
 
-  const { data: assignees = [] } = useAssignees(task?.id ?? null)
+  const { data: assignees = [] } = useAssignees(effectiveTask?.id ?? null)
   const addAssignee = useAddAssignee()
   const updateAssigneeHook = useUpdateAssignee()
   const removeAssignee = useRemoveAssignee()
 
-  const { data: deps } = useDependencies(task?.id ?? null)
+  const { data: deps } = useDependencies(effectiveTask?.id ?? null)
   const addDep = useAddDependency()
   const removeDep = useRemoveDependency()
   const { data: allTasks = [] } = useTasks()
@@ -98,11 +100,13 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
       setSprintId(task.sprint_id); setTeamId(task.team_id)
       setIsBlocked(task.is_blocked); setBlockedReason(task.blocked_reason ?? '')
       setDueDate(task.due_date ?? '')
+      setCreatedTask(null)
     } else {
       setTitle(''); setDescription(''); setStatus(defaultStatus ?? 'todo')
       setPriority('medium'); setSprintId(sprints?.[0]?.id ?? '')
       setTeamId(teams?.[0]?.id ?? ''); setIsBlocked(false); setBlockedReason('')
       setDueDate(defaultDueDate ?? '')
+      setCreatedTask(null)
     }
     setConfirmDelete(false); setShowRefForm(false); setShowImageForm(false)
     setRefLabel(''); setRefUrl(''); setImageLabel(''); setImageFile(null); setImagePreview(null)
@@ -114,7 +118,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
     ? `Sprint ${sprints.find((s) => s.id === sprintId)!.number}: ${sprints.find((s) => s.id === sprintId)!.name}`
     : 'Select sprint'
   const teamLabel = teams?.find((t) => t.id === teamId)?.name ?? 'Select team'
-  const assignedByMember = task?.assigned_by_id ? members?.find((m) => m.id === task.assigned_by_id) : null
+  const assignedByMember = effectiveTask?.assigned_by_id ? members?.find((m) => m.id === effectiveTask.assigned_by_id) : null
 
   // Members not yet assigned to this task
   const availableMembers = members?.filter((m) => !assignees.some((a) => a.member_id === m.id)) ?? []
@@ -132,15 +136,17 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
       due_date: dueDate || null,
     }
     try {
-      if (isEdit) {
-        await updateTask.mutateAsync({ update: { id: task.id, ...payload }, previousTask: task, actorId: currentMember?.id })
+      if (isEdit && effectiveTask) {
+        await updateTask.mutateAsync({ update: { id: effectiveTask.id, ...payload }, previousTask: effectiveTask, actorId: currentMember?.id })
+        onClose()
       } else {
-        await createTask.mutateAsync({
+        const newTask = await createTask.mutateAsync({
           ...payload, assigned_by_id: currentMember?.id ?? null,
           position: Math.floor(Date.now() / 1000) % 1000000 + 100000,
         })
+        // Switch to edit mode so user can add assignees, deps, refs
+        setCreatedTask(newTask)
       }
-      onClose()
     } catch (err: unknown) {
       const e = err as Record<string, unknown>
       alert(`Error saving task: ${e?.message ?? e?.details ?? e?.hint ?? JSON.stringify(err)}`)
@@ -148,17 +154,17 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   }
 
   const handleDelete = async () => {
-    if (!task) return
+    if (!effectiveTask) return
     if (!confirmDelete) { setConfirmDelete(true); return }
-    await deleteTask.mutateAsync(task.id); onClose()
+    await deleteTask.mutateAsync(effectiveTask.id); onClose()
   }
 
   // Assignee handlers
   const handleAddAssignee = async () => {
-    if (!task || !newAssigneeMemberId) return
+    if (!effectiveTask || !newAssigneeMemberId) return
     try {
       await addAssignee.mutateAsync({
-        task_id: task.id, member_id: newAssigneeMemberId, description: newAssigneeDesc.trim(),
+        task_id: effectiveTask.id, member_id: newAssigneeMemberId, description: newAssigneeDesc.trim(),
       })
       setNewAssigneeMemberId(''); setNewAssigneeDesc(''); setShowAssigneeForm(false)
     } catch (err: unknown) {
@@ -168,22 +174,22 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   }
 
   const handleUpdateAssigneeDesc = async (assigneeId: string, desc: string) => {
-    if (!task) return
-    await updateAssigneeHook.mutateAsync({ id: assigneeId, description: desc, taskId: task.id })
+    if (!effectiveTask) return
+    await updateAssigneeHook.mutateAsync({ id: assigneeId, description: desc, taskId: effectiveTask.id })
   }
 
   const handleRemoveAssignee = async (assigneeId: string) => {
-    if (!task) return
-    await removeAssignee.mutateAsync({ id: assigneeId, taskId: task.id })
+    if (!effectiveTask) return
+    await removeAssignee.mutateAsync({ id: assigneeId, taskId: effectiveTask.id })
   }
 
   // Reference handlers
   const handleAddReference = async () => {
-    if (!task || !refLabel.trim() || !refUrl.trim()) return
+    if (!effectiveTask || !refLabel.trim() || !refUrl.trim()) return
     let url = refUrl.trim()
     if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url
     try {
-      await createReference.mutateAsync({ task_id: task.id, label: refLabel.trim(), url, type: 'link', created_by: currentMember?.id ?? null })
+      await createReference.mutateAsync({ task_id: effectiveTask.id, label: refLabel.trim(), url, type: 'link', created_by: currentMember?.id ?? null })
       setRefLabel(''); setRefUrl(''); setShowRefForm(false)
     } catch (err: unknown) { const e = err as Record<string, unknown>; alert(`Error: ${e?.message ?? JSON.stringify(err)}`) }
   }
@@ -201,26 +207,26 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   const handleDragLeave = useCallback(() => { setIsDragOver(false) }, [])
 
   const handleUploadImage = async () => {
-    if (!task || !imageFile || !imageLabel.trim()) return
+    if (!effectiveTask || !imageFile || !imageLabel.trim()) return
     setUploading(true)
     try {
-      const url = await uploadImage(imageFile, task.id)
-      await createReference.mutateAsync({ task_id: task.id, label: imageLabel.trim(), url, type: 'image', created_by: currentMember?.id ?? null })
+      const url = await uploadImage(imageFile, effectiveTask.id)
+      await createReference.mutateAsync({ task_id: effectiveTask.id, label: imageLabel.trim(), url, type: 'image', created_by: currentMember?.id ?? null })
       setImageLabel(''); setImageFile(null); setImagePreview(null); setShowImageForm(false)
     } catch (err: unknown) { const e = err as Record<string, unknown>; alert(`Error: ${e?.message ?? JSON.stringify(err)}`) }
     finally { setUploading(false) }
   }
 
-  const handleDeleteReference = async (refId: string) => { if (task) await deleteReference.mutateAsync({ id: refId, taskId: task.id }) }
+  const handleDeleteReference = async (refId: string) => { if (effectiveTask) await deleteReference.mutateAsync({ id: refId, taskId: effectiveTask.id }) }
 
   // Dependency handlers
   const handleAddDep = async () => {
-    if (!task || !depTaskId) return
+    if (!effectiveTask || !depTaskId) return
     try {
       if (depType === 'waiting') {
-        await addDep.mutateAsync({ blockingTaskId: depTaskId, waitingTaskId: task.id })
+        await addDep.mutateAsync({ blockingTaskId: depTaskId, waitingTaskId: effectiveTask.id })
       } else {
-        await addDep.mutateAsync({ blockingTaskId: task.id, waitingTaskId: depTaskId })
+        await addDep.mutateAsync({ blockingTaskId: effectiveTask.id, waitingTaskId: depTaskId })
       }
       setDepTaskId(''); setShowDepForm(false)
     } catch (err: unknown) {
@@ -240,7 +246,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   const linkedTaskIds = new Set([
     ...waitingOn.map(d => d.blocking_task_id),
     ...blocks.map(d => d.waiting_task_id),
-    task?.id ?? '',
+    effectiveTask?.id ?? '',
   ])
   const availableDepTasks = allTasks.filter(t => !linkedTaskIds.has(t.id))
 
@@ -248,10 +254,10 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
   const imageRefs = references.filter((r) => r.type === 'image')
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { setCreatedTask(null); onClose() } }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
+          <DialogTitle>{createdTask ? 'Task Created — Add Details' : isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -576,8 +582,8 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}
 
           {/* Activity & Comments Section */}
-          {isEdit && task && (
-            <TaskActivity taskId={task.id} currentMemberId={currentMember?.id ?? null} />
+          {isEdit && effectiveTask && (
+            <TaskActivity taskId={effectiveTask.id} currentMemberId={currentMember?.id ?? null} />
           )}
         </div>
 
@@ -587,7 +593,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultDueDate 
           )}</div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!title.trim()}>{isEdit ? 'Save Changes' : 'Create Task'}</Button>
+            <Button onClick={handleSave} disabled={!title.trim()}>{createdTask ? 'Save & Close' : isEdit ? 'Save Changes' : 'Create Task'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
