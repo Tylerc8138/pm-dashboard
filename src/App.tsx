@@ -12,6 +12,7 @@ import { EmailManager } from '@/components/email/email-manager'
 import { SprintManager } from '@/components/sprints/sprint-manager'
 import { LoginPage } from '@/pages/login'
 import { GatePage } from '@/pages/gate'
+import { ResetPasswordPage } from '@/pages/reset-password'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useCurrentMember } from '@/hooks/use-current-member'
 import { useTeams } from '@/hooks/use-teams'
@@ -109,6 +110,15 @@ export default function App() {
   const [gatePassed, setGatePassed] = useState(
     () => localStorage.getItem('dashboard_gate') === 'passed'
   )
+  const [showResetPassword, setShowResetPassword] = useState(false)
+
+  // Detect Supabase recovery token in URL hash
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=recovery')) {
+      setShowResetPassword(true)
+    }
+  }, [])
 
   if (!gatePassed) {
     return <GatePage onSuccess={() => setGatePassed(true)} />
@@ -120,6 +130,11 @@ export default function App() {
         <div className="text-muted-foreground">Loading...</div>
       </div>
     )
+  }
+
+  // Show reset password page when recovery token is present
+  if (showResetPassword && user) {
+    return <ResetPasswordPage onComplete={() => { setShowResetPassword(false); window.location.hash = '' }} />
   }
 
   if (!user) return <LoginPage />
